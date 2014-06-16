@@ -176,7 +176,7 @@ Stats runEncoderTestSuite(
     uint imageCount = 0;
     for(uint index = indexMin; index <= indexMax; index += indexStep) {
         char buf[1024];
-        sprintf_s(buf, filenamePattern.c_str(), index);
+        sprintf(buf, filenamePattern.c_str(), index);
         std::string filename(buf);
 
         uint sizeX = 0;

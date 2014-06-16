@@ -23,26 +23,26 @@ class Instance;
 // log2HuffmanDistinctSymbolCountMax is the max number of bits in the input values for the Huffman coder.
 //   Should preferably be <= 16, must be <= 24; large values will result in higher memory usage and reduced performance.
 //   Default: 14
-CUCOMP_DLL Instance* createInstance(
+Instance* createInstance(
     int cudaDevice,
     uint streamCountMax,
     uint elemCountPerStreamMax,
     uint codingBlockSize = 0,
     uint log2HuffmanDistinctSymbolCountMax = 0);
 // Destroy a cudaCompress::Instance created previously by createInstance.
-CUCOMP_DLL void  destroyInstance(Instance* pInstance);
+void  destroyInstance(Instance* pInstance);
 
 // Query Instance parameters.
-CUCOMP_DLL int getInstanceCudaDevice(const Instance* pInstance);
-CUCOMP_DLL uint getInstanceStreamCountMax(const Instance* pInstance);
-CUCOMP_DLL uint getInstanceElemCountPerStreamMax(const Instance* pInstance);
-CUCOMP_DLL uint getInstanceCodingBlockSize(const Instance* pInstance);
-CUCOMP_DLL uint getInstanceLog2HuffmanDistinctSymbolCountMax(const Instance* pInstance);
-CUCOMP_DLL bool getInstanceUseLongSymbols(const Instance* pInstance);
+int getInstanceCudaDevice(const Instance* pInstance);
+uint getInstanceStreamCountMax(const Instance* pInstance);
+uint getInstanceElemCountPerStreamMax(const Instance* pInstance);
+uint getInstanceCodingBlockSize(const Instance* pInstance);
+uint getInstanceLog2HuffmanDistinctSymbolCountMax(const Instance* pInstance);
+bool getInstanceUseLongSymbols(const Instance* pInstance);
 
 // Set a cudaStream to use for all cudaCompress kernels.
-CUCOMP_DLL void setInstanceCudaStream(Instance* pInstance, cudaStream_t str);
-CUCOMP_DLL cudaStream_t getInstanceCudaStream(const Instance* pInstance);
+void setInstanceCudaStream(Instance* pInstance, cudaStream_t str);
+cudaStream_t getInstanceCudaStream(const Instance* pInstance);
 
 }
 

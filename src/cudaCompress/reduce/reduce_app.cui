@@ -127,7 +127,7 @@ void reduceArray(T *d_odata, const T *d_idata, size_t numElements, const ReduceP
     if (numBlocks > 1)
     {
         reduceBlocks<T, Oper, Func>((T*)plan->m_blockSums, d_idata, uint(numElements), plan);
-        reduceBlocks<T, Oper, FunctorIdentity<T>>(d_odata, (const T*)plan->m_blockSums, numBlocks, plan);
+        reduceBlocks<T, Oper, FunctorIdentity<T> >(d_odata, (const T*)plan->m_blockSums, numBlocks, plan);
     }
     else
     {
@@ -138,7 +138,7 @@ void reduceArray(T *d_odata, const T *d_idata, size_t numElements, const ReduceP
 template <typename T, typename Oper>
 void reduceArray(T *d_odata, const T *d_idata, size_t numElements, const ReducePlan* plan)
 {
-    reduceArray<T, Oper, FunctorIdentity<T>>(d_odata, d_idata, numElements, plan);
+    reduceArray<T, Oper, FunctorIdentity<T> >(d_odata, d_idata, numElements, plan);
 }
 
 }

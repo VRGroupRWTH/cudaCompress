@@ -19,16 +19,16 @@ namespace util {
 class CudaTimerResources
 {
 public:
-    CUCOMP_DLL CudaTimerResources(bool enabled = false);
-    CUCOMP_DLL ~CudaTimerResources();
+    CudaTimerResources(bool enabled = false);
+    ~CudaTimerResources();
 
     void setEnabled(bool enable = true) { m_isEnabled = enable; }
 
-    CUCOMP_DLL const std::map<std::string, float>& getAccumulatedTimes(bool sync);
-    CUCOMP_DLL void getAccumulatedTimes(std::vector<std::string>& names, std::vector<float>& times, bool sync);
-    CUCOMP_DLL void reset();
+    const std::map<std::string, float>& getAccumulatedTimes(bool sync);
+    void getAccumulatedTimes(std::vector<std::string>& names, std::vector<float>& times, bool sync);
+    void reset();
 
-    CUCOMP_DLL void record(const std::string& name);
+    void record(const std::string& name);
 
 private:
     struct NamedEvent
@@ -59,12 +59,12 @@ private:
 class CudaScopedTimer
 {
 public:
-    CUCOMP_DLL CudaScopedTimer(CudaTimerResources& resources);
-    CUCOMP_DLL ~CudaScopedTimer();
+    CudaScopedTimer(CudaTimerResources& resources);
+    ~CudaScopedTimer();
 
     // start timing the next section
     // call without params to close the current section
-    CUCOMP_DLL void operator() (const std::string& name = std::string());
+    void operator() (const std::string& name = std::string());
 
 private:
     CudaTimerResources& m_resources;

@@ -20,11 +20,11 @@ enum ETimingDetail
     TIMING_DETAIL_HIGH,
 };
 
-void CUCOMP_DLL setTimingDetail(Instance* pCudaCompressInstance, ETimingDetail detail);
+void setTimingDetail(Instance* pCudaCompressInstance, ETimingDetail detail);
 
-void CUCOMP_DLL getTimings(Instance* pCudaCompressInstance, std::vector<std::string>& names, std::vector<float>& times);
-void CUCOMP_DLL printTimings(Instance* pCudaCompressInstance);
-void CUCOMP_DLL resetTimings(Instance* pCudaCompressInstance);
+void getTimings(Instance* pCudaCompressInstance, std::vector<std::string>& names, std::vector<float>& times);
+void printTimings(Instance* pCudaCompressInstance);
+void resetTimings(Instance* pCudaCompressInstance);
 
 }
 

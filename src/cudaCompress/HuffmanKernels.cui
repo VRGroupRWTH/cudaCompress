@@ -3,6 +3,8 @@
 #include <cudaCompress/EncodeCommon.h>
 #include <cudaCompress/BitStreamGPU.cuh>
 
+#include <cassert>
+
 
 #define WORDS_TO_LENGTH_THREADS_PER_BLOCK 192
 
@@ -118,7 +120,9 @@ __global__ void huffmanEncodeCompactifyKernel(const HuffmanGPUStreamInfo* __rest
         s_codewordStream[threadIdx.x + i * COMPACTIFY_THREADS_PER_BLOCK] = 0;
     }
     // read input from global to shared memory
-    static_assert(sizeof(uint) % sizeof(Symbol) == 0, "sizeof(uint) must be multiple of sizeof(Symbol)");
+    //static_assert(sizeof(uint) % sizeof(Symbol) == 0, "sizeof(uint) must be multiple of sizeof(Symbol)");
+    assert(sizeof(uint) % sizeof(Symbol) == 0);
+
     const uint symbolsPerWord = sizeof(uint) / sizeof(Symbol);
     uint wordCount = (symbolCount + symbolsPerWord - 1) / symbolsPerWord;
     #pragma unroll
@@ -352,7 +356,8 @@ __device__ inline void huffmanDecodeTransposeKernelImpl(Symbol* __restrict__ pSy
     //}
 
     // write out (4-byte elements)
-    static_assert(sizeof(uint) % sizeof(Symbol) == 0, "sizeof(uint) must be multiple of sizeof(Symbol)");
+    //static_assert(sizeof(uint) % sizeof(Symbol) == 0, "sizeof(uint) must be multiple of sizeof(Symbol)");
+    assert(sizeof(uint) % sizeof(Symbol) == 0);
     uint factor = sizeof(uint) / sizeof(Symbol);
     for(uint col = factor * threadIdx.x; col < codingBlockSize; col += factor * TRANSPOSE_BLOCKDIM_X) {
         #pragma unroll

@@ -44,7 +44,7 @@ size_t huffmanGetRequiredMemory(const Instance* pInstance)
     // decode: dpStreamInfos
     sizeDecode += getAlignedSize(sizeof(HuffmanGPUStreamInfo) * streamCountMax, 128);
 
-    return max(sizeEncode, sizeDecode);
+    return std::max<size_t>(sizeEncode, sizeDecode);
 }
 
 bool huffmanInit(Instance* pInstance)
@@ -64,7 +64,7 @@ bool huffmanShutdown(Instance* pInstance)
     pInstance->Huffman.syncEventReadback = 0;
 
     cudaSafeCall(cudaFreeHost(pInstance->Huffman.pReadback));
-    pInstance->Huffman.pReadback = nullptr;
+    pInstance->Huffman.pReadback = NULL;
 
     return true;
 }

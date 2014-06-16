@@ -41,7 +41,8 @@ bool histogramInit(Instance* pInstance)
 {
     uint histogramCountMax = pInstance->m_streamCountMax;
 
-    static_assert(SMALL_HISTOGRAM_THREADBLOCK_SIZE % (4 * SHARED_MEMORY_BANKS) == 0, "SMALL_HISTOGRAM_THREADBLOCK_SIZE % (4 * SHARED_MEMORY_BANKS) must equal 0");
+    //static_assert(SMALL_HISTOGRAM_THREADBLOCK_SIZE % (4 * SHARED_MEMORY_BANKS) == 0, "SMALL_HISTOGRAM_THREADBLOCK_SIZE % (4 * SHARED_MEMORY_BANKS) must equal 0");
+    assert(SMALL_HISTOGRAM_THREADBLOCK_SIZE % (4 * SHARED_MEMORY_BANKS) == 0);
 
     size_t maxUploadSize = getAlignedSize(histogramCountMax * sizeof(uint*), 128);
     maxUploadSize += getAlignedSize(histogramCountMax * sizeof(ushort*), 128);
@@ -61,7 +62,7 @@ bool histogramShutdown(Instance* pInstance)
     pInstance->Histogram.syncEvent = 0;
 
     cudaSafeCall(cudaFreeHost(pInstance->Histogram.pUpload));
-    pInstance->Histogram.pUpload = nullptr;
+    pInstance->Histogram.pUpload = NULL;
 
     return true;
 }

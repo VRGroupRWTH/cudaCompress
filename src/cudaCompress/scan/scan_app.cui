@@ -72,7 +72,7 @@ void scanArray(TOut* d_out, const TIn* d_in, size_t numElements, size_t numRows,
     case 0: // single block, single row, non-full block
         scan4<TIn, TOut, ScanTraits<Op, Func, isExclusive, false, false, false> >
                <<< grid, threads, sharedMemSize, stream >>>
-               (d_out, d_in, nullptr, (uint)numElements, (uint)rowPitch, blockSumRowPitch);
+               (d_out, d_in, NULL, (uint)numElements, (uint)rowPitch, blockSumRowPitch);
         break;
     case 1: // multiblock, single row, non-full block
         scan4<TIn, TOut, ScanTraits<Op, Func, isExclusive, false, true, false> >
@@ -82,7 +82,7 @@ void scanArray(TOut* d_out, const TIn* d_in, size_t numElements, size_t numRows,
     case 2: // single block, multirow, non-full block
         scan4<TIn, TOut, ScanTraits<Op, Func, isExclusive, true, false, false> >
                <<< grid, threads, sharedMemSize, stream >>>
-               (d_out, d_in, nullptr, (uint)numElements, (uint)rowPitch, blockSumRowPitch);
+               (d_out, d_in, NULL, (uint)numElements, (uint)rowPitch, blockSumRowPitch);
         break;
     case 3: // multiblock, multirow, non-full block
         scan4<TIn, TOut, ScanTraits<Op, Func, isExclusive, true, true, false> >
@@ -92,7 +92,7 @@ void scanArray(TOut* d_out, const TIn* d_in, size_t numElements, size_t numRows,
     case 4: // single block, single row, full block
         scan4<TIn, TOut, ScanTraits<Op, Func, isExclusive, false, false, true> >
                <<< grid, threads, sharedMemSize, stream >>>
-               (d_out, d_in, nullptr, (uint)numElements, (uint)rowPitch, blockSumRowPitch);
+               (d_out, d_in, NULL, (uint)numElements, (uint)rowPitch, blockSumRowPitch);
         break;
     case 5: // multiblock, single row, full block
         scan4<TIn, TOut, ScanTraits<Op, Func, isExclusive, false, true, true> >
@@ -102,7 +102,7 @@ void scanArray(TOut* d_out, const TIn* d_in, size_t numElements, size_t numRows,
     case 6: // single block, multirow, full block
         scan4<TIn, TOut, ScanTraits<Op, Func, isExclusive, true, false, true> >
                <<< grid, threads, sharedMemSize, stream >>>
-               (d_out, d_in, nullptr, (uint)numElements, (uint)rowPitch, blockSumRowPitch);
+               (d_out, d_in, NULL, (uint)numElements, (uint)rowPitch, blockSumRowPitch);
         break;
     case 7: // multiblock, multirow, full block
         scan4<TIn, TOut, ScanTraits<Op, Func, isExclusive, true, true, true> >
@@ -121,7 +121,7 @@ void scanArray(TOut* d_out, const TIn* d_in, size_t numElements, size_t numRows,
         // that must be added to each block to get the final results.
 
         // recursive (CPU) call
-        scanArray<TOut, TOut, true, FunctorIdentity<TOut>> // second-level scan always uses identity functor
+        scanArray<TOut, TOut, true, FunctorIdentity<TOut> > // second-level scan always uses identity functor
             ((TOut*)plan->m_blockSums[level], (const TOut*)plan->m_blockSums[level], numBlocks, numRows, numRows > 1 ? plan->m_rowPitches[level + 1] : 1, plan, stream, level + 1); 
         
         if (fullBlock) {
@@ -160,7 +160,7 @@ void scanArray(TOut* d_out, const TIn* d_in, size_t numElements, const ScanPlan*
 template <typename TIn, typename TOut, bool isExclusive>
 void scanArray(TOut* d_out, const TIn* d_in, size_t numElements, const ScanPlan* plan, cudaStream_t stream = 0)
 {
-    scanArray<TIn, TOut, isExclusive, FunctorIdentity<TIn>>(d_out, d_in, numElements, plan, stream);
+    scanArray<TIn, TOut, isExclusive, FunctorIdentity<TIn> >(d_out, d_in, numElements, plan, stream);
 }
 
 // multi-row with identity functor
@@ -170,7 +170,7 @@ void scanArray(TOut* d_out, const TIn* d_in, size_t numElements, size_t numRows,
     assert(numElements <= plan->m_numElements);
     assert(numRows <= plan->m_numRows);
     assert(numRows <= 1 || rowPitch <= plan->m_rowPitches[0]);
-    scanArray<TIn, TOut, isExclusive, FunctorIdentity<TIn>>(d_out, d_in, numElements, numRows, rowPitch, plan, stream);
+    scanArray<TIn, TOut, isExclusive, FunctorIdentity<TIn> >(d_out, d_in, numElements, numRows, rowPitch, plan, stream);
 }
 
 }

@@ -13,11 +13,11 @@ namespace util {
 
 // RGB <-> YCoCg color space conversion
 // dpTarget and dpData may point to the same memory
-CUCOMP_DLL void convertRGBtoYCoCg(uchar3* dpTarget, const uchar3* dpData, int pixelCount);
-CUCOMP_DLL void convertYCoCgtoRGB(uchar3* dpTarget, const uchar3* dpData, int pixelCount);
+void convertRGBtoYCoCg(uchar3* dpTarget, const uchar3* dpData, int pixelCount);
+void convertYCoCgtoRGB(uchar3* dpTarget, const uchar3* dpData, int pixelCount);
 
-CUCOMP_DLL void convertRGBtoYCoCg(uchar4* dpTarget, const uchar4* dpData, int pixelCount);
-CUCOMP_DLL void convertYCoCgtoRGB(uchar4* dpTarget, const uchar4* dpData, int pixelCount);
+void convertRGBtoYCoCg(uchar4* dpTarget, const uchar4* dpData, int pixelCount);
+void convertYCoCgtoRGB(uchar4* dpTarget, const uchar4* dpData, int pixelCount);
 
 }
 

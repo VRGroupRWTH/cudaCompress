@@ -25,31 +25,31 @@ bool encodeShutdown(Instance* pInstance);
 //FIXME: decodeHuff expects its output arrays (pdpSymbolStreams) to be padded to a multiple of WARP_SIZE*codingBlockSize
 
 // single bitstream for all blocks
-CUCOMP_DLL bool encodeRLHuff(Instance* pInstance, BitStream& bitStream, const Symbol16* const pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
-CUCOMP_DLL bool decodeRLHuff(Instance* pInstance, BitStreamReadOnly& bitStream, Symbol16* pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
+bool encodeRLHuff(Instance* pInstance, BitStream& bitStream, const Symbol16* const pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
+bool decodeRLHuff(Instance* pInstance, BitStreamReadOnly& bitStream, Symbol16* pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
 
-CUCOMP_DLL bool encodeHuff(Instance* pInstance, BitStream& bitStream, /*const*/ Symbol16* const pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
-CUCOMP_DLL bool decodeHuff(Instance* pInstance, BitStreamReadOnly& bitStream, Symbol16* pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
+bool encodeHuff(Instance* pInstance, BitStream& bitStream, /*const*/ Symbol16* const pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
+bool decodeHuff(Instance* pInstance, BitStreamReadOnly& bitStream, Symbol16* pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
 
-CUCOMP_DLL bool encodeRLHuff(Instance* pInstance, BitStream& bitStream, const Symbol32* const pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
-CUCOMP_DLL bool decodeRLHuff(Instance* pInstance, BitStreamReadOnly& bitStream, Symbol32* pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
+bool encodeRLHuff(Instance* pInstance, BitStream& bitStream, const Symbol32* const pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
+bool decodeRLHuff(Instance* pInstance, BitStreamReadOnly& bitStream, Symbol32* pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
 
-CUCOMP_DLL bool encodeHuff(Instance* pInstance, BitStream& bitStream, /*const*/ Symbol32* const pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
-CUCOMP_DLL bool decodeHuff(Instance* pInstance, BitStreamReadOnly& bitStream, Symbol32* pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
+bool encodeHuff(Instance* pInstance, BitStream& bitStream, /*const*/ Symbol32* const pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
+bool decodeHuff(Instance* pInstance, BitStreamReadOnly& bitStream, Symbol32* pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
 
 
 // separate bitstream for each block (but may contain duplicates)
-CUCOMP_DLL bool encodeRLHuff(Instance* pInstance, BitStream* ppBitStreams[], const Symbol16* const pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
-CUCOMP_DLL bool decodeRLHuff(Instance* pInstance, BitStreamReadOnly* ppBitStreams[], Symbol16* pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
+bool encodeRLHuff(Instance* pInstance, BitStream* ppBitStreams[], const Symbol16* const pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
+bool decodeRLHuff(Instance* pInstance, BitStreamReadOnly* ppBitStreams[], Symbol16* pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
 
-CUCOMP_DLL bool encodeHuff(Instance* pInstance, BitStream* ppBitStreams[], /*const*/ Symbol16* const pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
-CUCOMP_DLL bool decodeHuff(Instance* pInstance, BitStreamReadOnly* ppBitStreams[], Symbol16* pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
+bool encodeHuff(Instance* pInstance, BitStream* ppBitStreams[], /*const*/ Symbol16* const pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
+bool decodeHuff(Instance* pInstance, BitStreamReadOnly* ppBitStreams[], Symbol16* pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
 
-CUCOMP_DLL bool encodeRLHuff(Instance* pInstance, BitStream* ppBitStreams[], const Symbol32* const pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
-CUCOMP_DLL bool decodeRLHuff(Instance* pInstance, BitStreamReadOnly* ppBitStreams[], Symbol32* pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
+bool encodeRLHuff(Instance* pInstance, BitStream* ppBitStreams[], const Symbol32* const pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
+bool decodeRLHuff(Instance* pInstance, BitStreamReadOnly* ppBitStreams[], Symbol32* pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
 
-CUCOMP_DLL bool encodeHuff(Instance* pInstance, BitStream* ppBitStreams[], /*const*/ Symbol32* const pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
-CUCOMP_DLL bool decodeHuff(Instance* pInstance, BitStreamReadOnly* ppBitStreams[], Symbol32* pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
+bool encodeHuff(Instance* pInstance, BitStream* ppBitStreams[], /*const*/ Symbol32* const pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
+bool decodeHuff(Instance* pInstance, BitStreamReadOnly* ppBitStreams[], Symbol32* pdpSymbolStreams[], uint streamCount, uint symbolCountPerBlock);
 
 
 //void encodeResetBitCounts();

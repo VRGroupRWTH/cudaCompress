@@ -1,7 +1,7 @@
 #ifndef __REDUCE_PLAN_H__
 #define __REDUCE_PLAN_H__
 
-
+#include <cstring>
 #include <cudaCompress/global.h>
 
 

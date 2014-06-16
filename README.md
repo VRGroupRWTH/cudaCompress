@@ -3,7 +3,25 @@ cudaCompress
 
 GPU data compression using CUDA
 
+Modified version for Linux from the original source 
+This version is developed and tested on Ubuntu 12.04 x64 using CMake 2.8 and CUDA 6.0
+To build, clone the project then perform the following:
 
+<code>
+cd cudaCompress
+mkdir build
+cd build
+cmake ..
+make
+</code>
+
+To run the example, from the base directory (ie: cudaCompress) do the following:
+
+<code>
+./build/examples
+</code>
+
+<h2>Original Readme</h2>
 This is the source code for the cudaCompress library, which was used in the papers
 
 Interactive Editing of GigaSample Terrain Fields

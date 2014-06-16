@@ -34,6 +34,9 @@ using namespace cudaCompress;
 #pragma warning( push )
 #pragma warning( disable : 4996 ) // "fopen may be unsafe"
 
+#ifdef __unix
+#define fopen_s(pFile,filename,mode) ((*(pFile))=fopen((filename),(mode)))==NULL
+#endif
 
 int compressImageScalable(const std::string& filenameOrig, uint width, uint height, uint levelCount, float quantStep)
 {

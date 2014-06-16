@@ -23,7 +23,7 @@
 namespace cudaCompress {
 
 HuffmanDecodeTable::HuffmanDecodeTable(const Instance* pInstance)
-    : m_pStorage(nullptr), m_symbolTableSize(0)
+    : m_pStorage(NULL), m_symbolTableSize(0)
 {
     size_t storageSize = computeMaxGPUSize(pInstance);
 
@@ -45,17 +45,32 @@ HuffmanDecodeTable::HuffmanDecodeTable(const Instance* pInstance)
     cudaSafeCall(cudaEventRecord(m_uploadSyncEvent));
 }
 
-HuffmanDecodeTable::HuffmanDecodeTable(HuffmanDecodeTable&& other)
+/*HuffmanDecodeTable::HuffmanDecodeTable(HuffmanDecodeTable&& other)
 {
     // copy state from other
     memcpy(this, &other, sizeof(HuffmanDecodeTable));
 
     // clear other
-    other.m_pStorage = nullptr;
-    other.m_pCodewordFirstIndexPerLength = nullptr;
-    other.m_pCodewordMinPerLength = nullptr;
-    other.m_pCodewordMaxPerLength = nullptr;
-    other.m_pSymbolTable = nullptr;
+    other.m_pStorage = NULL;
+    other.m_pCodewordFirstIndexPerLength = NULL;
+    other.m_pCodewordMinPerLength = NULL;
+    other.m_pCodewordMaxPerLength = NULL;
+    other.m_pSymbolTable = NULL;
+    other.m_symbolTableSize = 0;
+    other.m_uploadSyncEvent = 0;
+}*/
+HuffmanDecodeTable::HuffmanDecodeTable(const HuffmanDecodeTable& tmp)
+{
+    // copy state from other
+    memcpy(this, &tmp, sizeof(HuffmanDecodeTable));
+
+    HuffmanDecodeTable &other = const_cast<HuffmanDecodeTable&>(tmp);
+    // clear other
+    other.m_pStorage = NULL;
+    other.m_pCodewordFirstIndexPerLength = NULL;
+    other.m_pCodewordMinPerLength = NULL;
+    other.m_pCodewordMaxPerLength = NULL;
+    other.m_pSymbolTable = NULL;
     other.m_symbolTableSize = 0;
     other.m_uploadSyncEvent = 0;
 }
@@ -73,7 +88,7 @@ HuffmanDecodeTable::~HuffmanDecodeTable()
 #endif
 }
 
-HuffmanDecodeTable& HuffmanDecodeTable::operator=(HuffmanDecodeTable&& other)
+/*HuffmanDecodeTable& HuffmanDecodeTable::operator=(HuffmanDecodeTable&& other)
 {
     if(this == &other)
         return *this;
@@ -89,15 +104,44 @@ HuffmanDecodeTable& HuffmanDecodeTable::operator=(HuffmanDecodeTable&& other)
     memcpy(this, &other, sizeof(HuffmanDecodeTable));
 
     // clear other
-    other.m_pStorage = nullptr;
-    other.m_pCodewordFirstIndexPerLength = nullptr;
-    other.m_pCodewordMinPerLength = nullptr;
-    other.m_pCodewordMaxPerLength = nullptr;
-    other.m_pSymbolTable = nullptr;
+    other.m_pStorage = NULL;
+    other.m_pCodewordFirstIndexPerLength = NULL;
+    other.m_pCodewordMinPerLength = NULL;
+    other.m_pCodewordMaxPerLength = NULL;
+    other.m_pSymbolTable = NULL;
+    other.m_symbolTableSize = 0;
+
+    return *this;
+}*/
+
+HuffmanDecodeTable& HuffmanDecodeTable::operator=(const HuffmanDecodeTable& tmp)
+{
+    if(this == &tmp)
+        return *this;
+
+    HuffmanDecodeTable &other = const_cast<HuffmanDecodeTable&>(tmp);
+
+    // release our own resources
+#ifdef PINNED_STORAGE
+    cudaSafeCall(cudaFreeHost(m_pStorage));
+#else
+    delete[] m_pStorage;
+#endif
+
+    // copy state from other
+    memcpy(this, &other, sizeof(HuffmanDecodeTable));
+
+    // clear other
+    other.m_pStorage = NULL;
+    other.m_pCodewordFirstIndexPerLength = NULL;
+    other.m_pCodewordMinPerLength = NULL;
+    other.m_pCodewordMaxPerLength = NULL;
+    other.m_pSymbolTable = NULL;
     other.m_symbolTableSize = 0;
 
     return *this;
 }
+
 
 void HuffmanDecodeTable::clear()
 {
@@ -223,7 +267,7 @@ void HuffmanDecodeTable::build(const std::vector<uint>& codewordCountPerLength)
     std::vector<uint> codewordLengths;
     codewordLengths.reserve(codewordCount);
     for(uint i = 0; i < codewordCountPerLength.size(); i++) {
-        codewordLengths.insert(codewordLengths.cend(), codewordCountPerLength[i], i + 1);
+        codewordLengths.insert(codewordLengths.end(), codewordCountPerLength[i], i + 1);
     }
 
     // find codewords
@@ -300,7 +344,7 @@ void HuffmanEncodeTable::init(Instance* pInstance)
 void HuffmanEncodeTable::shutdown(Instance* pInstance)
 {
     cudaSafeCall(cudaFreeHost(pInstance->HuffmanTable.pReadback));
-    pInstance->HuffmanTable.pReadback = nullptr;
+    pInstance->HuffmanTable.pReadback = NULL;
 }
 
 
@@ -315,16 +359,33 @@ HuffmanEncodeTable::HuffmanEncodeTable(const Instance* pInstance)
     m_pCodewordLengths = new uint[codewordTableSizeMax];
 }
 
-HuffmanEncodeTable::HuffmanEncodeTable(HuffmanEncodeTable&& other)
+/*HuffmanEncodeTable::HuffmanEncodeTable(HuffmanEncodeTable&& other)
 {
     m_symbolMax = other.m_symbolMax;
     m_symbols.swap(other.m_symbols);
     m_codewordCountPerLength.swap(other.m_codewordCountPerLength);
 
     m_pCodewords = other.m_pCodewords;
-    other.m_pCodewords = nullptr;
+    other.m_pCodewords = NULL;
     m_pCodewordLengths = other.m_pCodewordLengths;
-    other.m_pCodewordLengths = nullptr;
+    other.m_pCodewordLengths = NULL;
+    m_codewordTableSize = other.m_codewordTableSize;
+    other.m_codewordTableSize = 0;
+}*/
+HuffmanEncodeTable::HuffmanEncodeTable(const HuffmanEncodeTable& tmp)
+{
+    HuffmanEncodeTable &other = const_cast<HuffmanEncodeTable&>(tmp);
+
+    m_symbolMax = other.m_symbolMax;
+    //m_symbols = other.m_symbols;
+    m_symbols.swap(other.m_symbols);
+    m_codewordCountPerLength.swap(other.m_codewordCountPerLength);
+    //m_codewordCountPerLength = other.m_codewordCountPerLength;
+
+    m_pCodewords = other.m_pCodewords;
+    other.m_pCodewords = NULL;
+    m_pCodewordLengths = other.m_pCodewordLengths;
+    other.m_pCodewordLengths = NULL;
     m_codewordTableSize = other.m_codewordTableSize;
     other.m_codewordTableSize = 0;
 }
@@ -340,7 +401,7 @@ HuffmanEncodeTable::~HuffmanEncodeTable()
 }
 
 
-HuffmanEncodeTable& HuffmanEncodeTable::operator=(HuffmanEncodeTable&& other)
+/*HuffmanEncodeTable& HuffmanEncodeTable::operator=(HuffmanEncodeTable&& other)
 {
     if(this == &other)
         return *this;
@@ -351,15 +412,41 @@ HuffmanEncodeTable& HuffmanEncodeTable::operator=(HuffmanEncodeTable&& other)
 
     cudaSafeCall(cudaFreeHost(m_pCodewords));
     m_pCodewords = other.m_pCodewords;
-    other.m_pCodewords = nullptr;
+    other.m_pCodewords = NULL;
     cudaSafeCall(cudaFreeHost(m_pCodewordLengths));
     m_pCodewordLengths = other.m_pCodewordLengths;
-    other.m_pCodewordLengths = nullptr;
+    other.m_pCodewordLengths = NULL;
+    m_codewordTableSize = other.m_codewordTableSize;
+    other.m_codewordTableSize = 0;
+
+    return *this;
+}*/
+
+HuffmanEncodeTable& HuffmanEncodeTable::operator=(const HuffmanEncodeTable& tmp)
+{
+    HuffmanEncodeTable &other = const_cast<HuffmanEncodeTable&>(tmp);
+
+    if(this == &other)
+        return *this;
+
+    m_symbolMax = other.m_symbolMax;
+    //m_symbols = other.m_symbols;
+    m_symbols.swap(other.m_symbols);
+    //m_codewordCountPerLength = other.m_codewordCountPerLength;
+    m_codewordCountPerLength.swap(other.m_codewordCountPerLength);
+
+    cudaSafeCall(cudaFreeHost(m_pCodewords));
+    m_pCodewords = other.m_pCodewords;
+    other.m_pCodewords = NULL;
+    cudaSafeCall(cudaFreeHost(m_pCodewordLengths));
+    m_pCodewordLengths = other.m_pCodewordLengths;
+    other.m_pCodewordLengths = NULL;
     m_codewordTableSize = other.m_codewordTableSize;
     other.m_codewordTableSize = 0;
 
     return *this;
 }
+
 
 
 void HuffmanEncodeTable::clear()
@@ -394,7 +481,7 @@ bool HuffmanEncodeTable::design(Instance* pInstance, HuffmanEncodeTable* pTables
 
     // find max symbol
     for(uint i = 0; i < tableCount; i++) {
-        reduceArray<Symbol, OperatorMax<Symbol>>(dpReduceOut + i, pdpSymbolStreams[i], pSymbolCountPerStream[i], pInstance->m_pReducePlan);
+        reduceArray<Symbol, OperatorMax<Symbol> >(dpReduceOut + i, pdpSymbolStreams[i], pSymbolCountPerStream[i], pInstance->m_pReducePlan);
         cudaCheckMsg("HuffmanEncodeTable::design: Error in reduceArray");
     }
     Symbol* pTableSymbolMax = (Symbol*)pInstance->HuffmanTable.pReadback;

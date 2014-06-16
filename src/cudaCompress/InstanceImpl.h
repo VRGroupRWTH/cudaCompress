@@ -24,7 +24,7 @@ class ScanPlan;
 
 struct HuffmanGPUStreamInfo;
 
-class Instance
+class Instance 
 {
 public:
     Instance();
@@ -101,9 +101,9 @@ public:
 
             DecodeResources()
                 : syncEvent(0)
-                , pSymbolDecodeTablesBuffer(nullptr), pZeroCountDecodeTablesBuffer(nullptr)
-                , pCodewordStreams(nullptr), pSymbolOffsets(nullptr), pZeroCountOffsets(nullptr)
-                , pSymbolStreamInfos(nullptr), pZeroCountStreamInfos(nullptr) {}
+                , pSymbolDecodeTablesBuffer(NULL), pZeroCountDecodeTablesBuffer(NULL)
+                , pCodewordStreams(NULL), pSymbolOffsets(NULL), pZeroCountOffsets(NULL)
+                , pSymbolStreamInfos(NULL), pZeroCountStreamInfos(NULL) {}
         };
         const static int ms_decodeResourcesCount = 8;
         DecodeResources Decode[ms_decodeResourcesCount];
@@ -121,9 +121,9 @@ public:
         util::CudaTimerResources timerDecodeHighDetail;
 
         EncodeResources()
-            : pCodewordBuffer(nullptr), pOffsetBuffer(nullptr)
-            , pEncodeCodewords(nullptr), pEncodeCodewordLengths(nullptr)
-            , pEncodeSymbolStreamInfos(nullptr)
+            : pCodewordBuffer(NULL), pOffsetBuffer(NULL)
+            , pEncodeCodewords(NULL), pEncodeCodewordLengths(NULL)
+            , pEncodeSymbolStreamInfos(NULL)
             , encodeFinishedEvent(0)
             , nextDecodeResources(0) {}
     } Encode;
@@ -136,7 +136,7 @@ public:
         cudaEvent_t syncEvent;
 
         HistogramResources()
-            : pUpload(nullptr), syncEvent(0) {}
+            : pUpload(NULL), syncEvent(0) {}
     } Histogram;
 
     struct HuffmanResources
@@ -148,7 +148,7 @@ public:
         util::CudaTimerResources timerDecode;
 
         HuffmanResources()
-            : pReadback(nullptr), syncEventReadback(0) {}
+            : pReadback(NULL), syncEventReadback(0) {}
     } Huffman;
 
     struct HuffmanTableResources
@@ -156,7 +156,7 @@ public:
         uint* pReadback;
 
         HuffmanTableResources()
-            : pReadback(nullptr) {}
+            : pReadback(NULL) {}
     } HuffmanTable;
 
     struct RunLengthResources
@@ -171,7 +171,7 @@ public:
         util::CudaTimerResources timerDecode;
 
         RunLengthResources()
-            : pReadback(nullptr), pUpload(nullptr), syncEventUpload(0) {}
+            : pReadback(NULL), pUpload(NULL), syncEventUpload(0) {}
     } RunLength;
 
 

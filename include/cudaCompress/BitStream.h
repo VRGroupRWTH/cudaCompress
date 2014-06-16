@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstring>
 #include <vector>
 
 
@@ -15,7 +16,10 @@ class BitStreamReadOnly
 {
 public:
     BitStreamReadOnly(const uint* pBuffer, uint bitSize);
-    BitStreamReadOnly(BitStreamReadOnly&& other);
+    //BitStreamReadOnly(BitStreamReadOnly&& other);
+    BitStreamReadOnly(const BitStreamReadOnly& other);
+    //BitStreamReadOnly& operator=(const BitStreamReadOnly& other);
+
     virtual ~BitStreamReadOnly();
 
     uint getBitPosition() const;
@@ -64,17 +68,19 @@ protected:
     uint m_bitPos;
 
 private:
-    BitStreamReadOnly(const BitStreamReadOnly&);
-    BitStreamReadOnly& operator=(const BitStreamReadOnly&);
+    //BitStreamReadOnly(const BitStreamReadOnly&);
+    //BitStreamReadOnly& operator=(const BitStreamReadOnly&);
 };
 
 
 class BitStream : public BitStreamReadOnly
 {
 public:
-    // if pVector is nullptr, construct own storage
-    BitStream(std::vector<uint>* pVector = nullptr);
-    BitStream(BitStream&& other);
+    // if pVector is NULL, construct own storage
+    BitStream(std::vector<uint>* pVector = NULL);
+    //BitStream(BitStream&& other);
+    BitStream(const BitStream& other);
+    //BitStream& operator=(const BitStream& tmp);
     virtual ~BitStream();
 
     void setBitSize(uint bitSize);
@@ -105,8 +111,8 @@ private:
 
     void resizeVector(uint newSize);
 
-    BitStream(const BitStream&);
-    BitStream& operator=(const BitStream&);
+    //BitStream(const BitStream&);
+    //BitStream& operator=(const BitStream&);
 };
 
 
@@ -116,14 +122,39 @@ inline BitStreamReadOnly::BitStreamReadOnly(const uint* pBuffer, uint bitSize)
 {
 }
 
-inline BitStreamReadOnly::BitStreamReadOnly(BitStreamReadOnly&& other)
+/*inline BitStreamReadOnly::BitStreamReadOnly(BitStreamReadOnly&& other)
     : m_pBuffer(other.m_pBuffer), m_bitSize(other.m_bitSize), m_bufferPos(other.m_bufferPos), m_bitPos(other.m_bitPos)
 {
-    other.m_pBuffer = nullptr;
+    other.m_pBuffer = NULL;
+    other.m_bitSize = 0;
+    other.m_bufferPos = 0;
+    other.m_bitPos = 0;
+}*/
+inline BitStreamReadOnly::BitStreamReadOnly(const BitStreamReadOnly& tmp)
+    : m_pBuffer(tmp.m_pBuffer), m_bitSize(tmp.m_bitSize), m_bufferPos(tmp.m_bufferPos), m_bitPos(tmp.m_bitPos)
+{
+    BitStreamReadOnly &other = const_cast<BitStreamReadOnly&>(tmp);
+
+    other.m_pBuffer = NULL;
     other.m_bitSize = 0;
     other.m_bufferPos = 0;
     other.m_bitPos = 0;
 }
+
+/*inline BitStreamReadOnly& BitStreamReadOnly::operator=(const BitStreamReadOnly& tmp) {
+{
+    if(this == &tmp)
+        return *this;
+
+    BitStreamReadOnly &other = const_cast<BitStreamReadOnly&>(tmp);
+
+    other.m_pBuffer = NULL;
+    other.m_bitSize = 0;
+    other.m_bufferPos = 0;
+    other.m_bitPos = 0;
+
+    return *this;
+}*/
 
 inline BitStreamReadOnly::~BitStreamReadOnly()
 {
@@ -325,9 +356,9 @@ inline uint BitStreamReadOnly::getRawSizeBytes() const
 
 
 inline BitStream::BitStream(std::vector<uint>* pVector)
-    : BitStreamReadOnly(nullptr, 0)
+    : BitStreamReadOnly(NULL, 0)
 {
-    if(pVector != nullptr) {
+    if(pVector != NULL) {
         m_ownBuffer = false;
         m_pVector = pVector;
         m_bitSize = (uint)m_pVector->size() * 32;
@@ -339,13 +370,34 @@ inline BitStream::BitStream(std::vector<uint>* pVector)
     m_pBuffer = m_pVector->data();
 }
 
-inline BitStream::BitStream(BitStream&& other)
+/*inline BitStream::BitStream(BitStream&& other)
     : BitStreamReadOnly(std::move(other))
     , m_ownBuffer(other.m_ownBuffer), m_pVector(other.m_pVector)
 {
     other.m_ownBuffer = false;
-    other.m_pVector = nullptr;
+    other.m_pVector = NULL;
+}*/
+inline BitStream::BitStream(const BitStream& tmp)
+    : BitStreamReadOnly(tmp)
+    , m_ownBuffer(tmp.m_ownBuffer), m_pVector(tmp.m_pVector)
+{
+    BitStream &other = const_cast<BitStream&>(tmp);
+
+    other.m_ownBuffer = false;
+    other.m_pVector = NULL;
 }
+/*inline BitStream& BitStream::operator=(const BitStream& tmp) {
+{
+    if(this == &tmp)
+        return *this;
+
+    BitStream &other = const_cast<BitStream&>(tmp);
+    other.m_ownBuffer = false;
+    other.m_pVector = NULL;
+
+    return *this;
+}*/
+
 
 inline BitStream::~BitStream()
 {

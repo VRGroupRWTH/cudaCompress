@@ -354,8 +354,8 @@ void unquantizeDifferenceFromSymbols2D(float* dpData, const ushort* dpSymbols, f
 
 void getMaxAbs(Instance* pInstance, const float* dpImage, uint elemCount, float* dpValMax)
 {
-    if(dpValMax != nullptr) {
-        reduceArray<float, OperatorMax<float>, FunctorAbs<float>>(dpValMax, dpImage, elemCount, pInstance->m_pReducePlan);
+    if(dpValMax != NULL) {
+        reduceArray<float, OperatorMax<float>, FunctorAbs<float> >(dpValMax, dpImage, elemCount, pInstance->m_pReducePlan);
         cudaCheckMsg("getVolumeFloatMaxAbs: Error in reduceArray");
     }
 }

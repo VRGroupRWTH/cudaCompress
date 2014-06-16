@@ -38,7 +38,7 @@ size_t runLengthGetRequiredMemory(const Instance* pInstance)
     // dpScanTotal
     sizeEncode += getAlignedSize(streamCountMax * sizeof(uint), 128);
 
-    size_t size = max(sizeEncode, sizeDecode);
+    size_t size = std::max<size_t>(sizeEncode, sizeDecode);
 
     return size;
 }
@@ -66,7 +66,7 @@ bool runLengthShutdown(Instance* pInstance)
     pInstance->RunLength.syncEventUpload = 0;
 
     cudaSafeCall(cudaFreeHost(pInstance->RunLength.pUpload));
-    pInstance->RunLength.pUpload = nullptr;
+    pInstance->RunLength.pUpload = NULL;
 
     for(uint stream = 0; stream < pInstance->RunLength.syncEventsReadback.size(); stream++) {
         cudaSafeCall(cudaEventDestroy(pInstance->RunLength.syncEventsReadback[stream]));
@@ -74,7 +74,7 @@ bool runLengthShutdown(Instance* pInstance)
     pInstance->RunLength.syncEventsReadback.clear();
 
     cudaSafeCall(cudaFreeHost(pInstance->RunLength.pReadback));
-    pInstance->RunLength.pReadback = nullptr;
+    pInstance->RunLength.pReadback = NULL;
 
     return true;
 }
@@ -106,7 +106,7 @@ bool runLengthEncode(Instance* pInstance, Symbol** pdpSymbolsCompact, Symbol** p
 
         // run prefix sum on symbol non-zero flags to get output indices
         //TODO ballot scan!
-        scanArray<Symbol, uint, true, FunctorFlagTrue<Symbol, uint>>(dpOutputIndices, pdpSymbols[stream], pSymbolCount[stream] + 1, pInstance->m_pScanPlan, pInstance->m_stream);
+        scanArray<Symbol, uint, true, FunctorFlagTrue<Symbol, uint> >(dpOutputIndices, pdpSymbols[stream], pSymbolCount[stream] + 1, pInstance->m_pScanPlan, pInstance->m_stream);
         cudaCheckMsg("runLengthEncode: Error in scanArray");
 
         // last element of outputindices == compact symbol count, start readback
@@ -258,7 +258,7 @@ template<typename Symbol>
 bool runLengthDecode(Instance* pInstance, const Symbol* dpSymbolsCompact, const Symbol* dpZeroCounts, const uint* pSymbolCountCompact, uint stride, Symbol** pdpSymbols, uint symbolCount, uint streamCount)
 {
     assert(streamCount <= pInstance->m_streamCountMax);
-    assert(stride <= pInstance->m_elemCountPerStreamMax);
+    //assert(stride <= pInstance->m_elemCountPerStreamMax);
 
     //TODO make version of scanArray that takes separate input and output stride, and then alloc only streamCount * symbolCount here
     uint* dpValidSymbolIndices = pInstance->getBuffer<uint>(streamCount * stride);

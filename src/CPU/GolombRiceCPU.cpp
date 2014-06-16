@@ -1,5 +1,6 @@
 #include "GolombRiceCPU.h"
 
+#include <climits>
 #include <cmath>
 
 #include <cudaCompress/util.h>

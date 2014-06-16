@@ -564,7 +564,7 @@ void dwtFloat2DForward(
     int srcRowPitch,
     cudaStream_t stream)
 {
-    dwtFloatForward<float>(dpDest, nullptr, dpBuffer, dpSource, sizeX, sizeY, 1, srcChannelCount, dstRowPitch, 0, srcRowPitch, 0, stream);
+    dwtFloatForward<float>(dpDest, NULL, dpBuffer, dpSource, sizeX, sizeY, 1, srcChannelCount, dstRowPitch, 0, srcRowPitch, 0, stream);
 }
 
 void dwtFloat3DForward(
@@ -585,7 +585,7 @@ void dwtFloat2DInverse(
     int srcRowPitch,
     cudaStream_t stream)
 {
-    dwtFloatInverse<float>(dpDest, nullptr, dpBuffer, dpSource, sizeX, sizeY, 1, dstChannelCount, dstRowPitch, 0, srcRowPitch, 0, stream);
+    dwtFloatInverse<float>(dpDest, NULL, dpBuffer, dpSource, sizeX, sizeY, 1, dstChannelCount, dstRowPitch, 0, srcRowPitch, 0, stream);
 }
 
 void dwtFloat3DInverse(
@@ -607,7 +607,7 @@ void dwtFloat2DInverseFromSymbols(
     int lowpassRowPitch,
     cudaStream_t stream)
 {
-    dwtFloatInverseFromSymbols<float, ushort>(dpDest, nullptr, dpBuffer, dpLowpass, dppHighpass, quantStep, sizeX, sizeY, 1, dstChannelCount, dstRowPitch, 0, lowpassRowPitch, 0, stream);
+    dwtFloatInverseFromSymbols<float, ushort>(dpDest, NULL, dpBuffer, dpLowpass, dppHighpass, quantStep, sizeX, sizeY, 1, dstChannelCount, dstRowPitch, 0, lowpassRowPitch, 0, stream);
 }
 
 void dwtFloat3DInverseFromSymbols(
@@ -630,7 +630,7 @@ void dwtFloat2DInverseFromSymbols(
     int lowpassRowPitch,
     cudaStream_t stream)
 {
-    dwtFloatInverseFromSymbols<float, uint>(dpDest, nullptr, dpBuffer, dpLowpass, dppHighpass, quantStep, sizeX, sizeY, 1, dstChannelCount, dstRowPitch, 0, lowpassRowPitch, 0, stream);
+    dwtFloatInverseFromSymbols<float, uint>(dpDest, NULL, dpBuffer, dpLowpass, dppHighpass, quantStep, sizeX, sizeY, 1, dstChannelCount, dstRowPitch, 0, lowpassRowPitch, 0, stream);
 }
 
 void dwtFloat3DInverseFromSymbols(
@@ -653,7 +653,7 @@ void dwtFloat2DForwardFromByte(
     int srcRowPitch,
     cudaStream_t stream)
 {
-    dwtFloatForward<byte>(dpDest, nullptr, dpBuffer, dpSource, sizeX, sizeY, 1, srcChannelCount, dstRowPitch, 0, srcRowPitch, 0, stream);
+    dwtFloatForward<byte>(dpDest, NULL, dpBuffer, dpSource, sizeX, sizeY, 1, srcChannelCount, dstRowPitch, 0, srcRowPitch, 0, stream);
 }
 
 void dwtFloat3DForwardFromByte(
@@ -674,7 +674,7 @@ void dwtFloat2DInverseToByte(
     int srcRowPitch,
     cudaStream_t stream)
 {
-    dwtFloatInverse<byte>(dpDest, nullptr, dpBuffer, dpSource, sizeX, sizeY, 1, dstChannelCount, dstRowPitch, 0, srcRowPitch, 0, stream);
+    dwtFloatInverse<byte>(dpDest, NULL, dpBuffer, dpSource, sizeX, sizeY, 1, dstChannelCount, dstRowPitch, 0, srcRowPitch, 0, stream);
 }
 
 void dwtFloat3DInverseToByte(
@@ -696,7 +696,7 @@ void dwtFloat2DInverseFromSymbolsToByte(
     int lowpassRowPitch,
     cudaStream_t stream)
 {
-    dwtFloatInverseFromSymbols<byte>(dpDest, nullptr, dpBuffer, dpLowpass, dppHighpass, quantStep, sizeX, sizeY, 1, dstChannelCount, dstRowPitch, 0, lowpassRowPitch, 0, stream);
+    dwtFloatInverseFromSymbols<byte>(dpDest, NULL, dpBuffer, dpLowpass, dppHighpass, quantStep, sizeX, sizeY, 1, dstChannelCount, dstRowPitch, 0, lowpassRowPitch, 0, stream);
 }
 
 void dwtFloat3DInverseFromSymbolsToByte(

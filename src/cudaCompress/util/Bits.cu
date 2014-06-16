@@ -19,7 +19,7 @@ static __device__ inline int getNegativeSign(short val)
 template<int blockSize>
 __global__ void getLSBkernel(const short* __restrict__ pData, uint* __restrict__ pBits, uint elemCount)
 {
-    static_assert(blockSize % ELEMS_PER_THREAD == 0, "blockSize must be a multiple of ELEMS_PER_THREAD");
+    //static_assert(blockSize % ELEMS_PER_THREAD == 0, "blockSize must be a multiple of ELEMS_PER_THREAD");
 
     __shared__ short s_Data[ELEMS_PER_THREAD][blockSize + 1];
 
@@ -53,7 +53,7 @@ __global__ void getLSBkernel(const short* __restrict__ pData, uint* __restrict__
 template<int blockSize>
 __global__ void removeLSBKernel(short* __restrict__ pData, uint elemCount, short shift)
 {
-    static_assert(blockSize % ELEMS_PER_THREAD == 0, "blockSize must be a multiple of ELEMS_PER_THREAD");
+    //static_assert(blockSize % ELEMS_PER_THREAD == 0, "blockSize must be a multiple of ELEMS_PER_THREAD");
 
     __shared__ short s_Data[ELEMS_PER_THREAD][blockSize + 1];
 
@@ -89,7 +89,7 @@ __global__ void removeLSBKernel(short* __restrict__ pData, uint elemCount, short
 template<int blockSize>
 __global__ void getAndRemoveLSBKernel(short* __restrict__ pData, uint* __restrict__ pBits, uint elemCount, short shift)
 {
-    static_assert(blockSize % ELEMS_PER_THREAD == 0, "blockSize must be a multiple of ELEMS_PER_THREAD");
+    //static_assert(blockSize % ELEMS_PER_THREAD == 0, "blockSize must be a multiple of ELEMS_PER_THREAD");
 
     __shared__ short s_Data[ELEMS_PER_THREAD][blockSize + 1];
 
@@ -128,7 +128,7 @@ __global__ void getAndRemoveLSBKernel(short* __restrict__ pData, uint* __restric
 template<int blockSize>
 __global__ void appendLSBKernel(short* __restrict__ pData, const uint* __restrict__ pBits, uint elemCount, short shift)
 {
-    static_assert(blockSize % ELEMS_PER_THREAD == 0, "blockSize must be a multiple of ELEMS_PER_THREAD");
+    //static_assert(blockSize % ELEMS_PER_THREAD == 0, "blockSize must be a multiple of ELEMS_PER_THREAD");
 
     __shared__ short s_Data[ELEMS_PER_THREAD][blockSize + 1];
 

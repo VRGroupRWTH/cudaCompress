@@ -20,10 +20,12 @@ class HuffmanDecodeTable
 {
 public:
     HuffmanDecodeTable(const Instance* pInstance);
-    HuffmanDecodeTable(HuffmanDecodeTable&& other);
+    //HuffmanDecodeTable(HuffmanDecodeTable&& other);
+    HuffmanDecodeTable(const HuffmanDecodeTable& other);
     ~HuffmanDecodeTable();
 
-    HuffmanDecodeTable& operator=(HuffmanDecodeTable&& other);
+    //HuffmanDecodeTable& operator=(HuffmanDecodeTable&& other);
+    HuffmanDecodeTable& operator=(const HuffmanDecodeTable& other);
 
     void clear();
     void readFromBitStream(const Instance* pInstance, BitStreamReadOnly& bitstream);
@@ -55,8 +57,8 @@ private:
     void build(const std::vector<uint>& codewordCountPerLength);
 
     // don't allow copy or assignment
-    HuffmanDecodeTable(const HuffmanDecodeTable&);
-    void operator=(const HuffmanDecodeTable&);
+    //HuffmanDecodeTable(const HuffmanDecodeTable&);
+    //void operator=(const HuffmanDecodeTable&);
 };
 
 class HuffmanEncodeTable
@@ -67,10 +69,14 @@ public:
     static void shutdown(Instance* pInstance);
 
     HuffmanEncodeTable(const Instance* pInstance);
-    HuffmanEncodeTable(HuffmanEncodeTable&& other);
+    //HuffmanEncodeTable(HuffmanEncodeTable&& other);
+    HuffmanEncodeTable(const HuffmanEncodeTable& other);
+
     ~HuffmanEncodeTable();
 
-    HuffmanEncodeTable& operator=(HuffmanEncodeTable&& other);
+//    HuffmanEncodeTable& operator=(HuffmanEncodeTable&& other);
+    HuffmanEncodeTable& operator=(const HuffmanEncodeTable& other);
+
 
     void clear();
     static bool design(Instance* pInstance, HuffmanEncodeTable* pTables, uint tableCount, const Symbol16** pdpSymbolStreams, const uint* pSymbolCountPerStream);
@@ -99,8 +105,8 @@ private:
     uint m_codewordTableSize;
 
     // don't allow copy or assignment
-    HuffmanEncodeTable(const HuffmanEncodeTable&);
-    HuffmanEncodeTable& operator=(const HuffmanEncodeTable&);
+    //HuffmanEncodeTable(const HuffmanEncodeTable&);
+    //HuffmanEncodeTable& operator=(const HuffmanEncodeTable&);
 };
 
 }

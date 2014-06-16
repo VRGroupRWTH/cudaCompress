@@ -2,6 +2,7 @@
 #define __SCAN_PLAN_H__
 
 
+#include <cstring>
 #include <cudaCompress/global.h>
 
 

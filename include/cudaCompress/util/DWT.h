@@ -18,13 +18,13 @@ namespace util {
 // perform scalar DWT on one channel of an array with srcChannelCount interleaved channels (ie elemStride is srcChannelCount)
 // dpSource points to the correct channel within the first data element
 // srcChannelCount has to be between 1 and 4
-CUCOMP_DLL void dwtFloat2DForward(
+void dwtFloat2DForward(
     float* dpDest, float* dpBuffer, const float* dpSource,
     int sizeX, int sizeY, int srcChannelCount = 1,
     int dstRowPitch = 0,
     int srcRowPitch = 0,
     cudaStream_t stream = 0);
-CUCOMP_DLL void dwtFloat3DForward(
+void dwtFloat3DForward(
     float* dpDest, float* dpBuffer2, float* dpBuffer1, const float* dpSource,
     int sizeX, int sizeY, int sizeZ, int srcChannelCount = 1,
     int dstRowPitch = 0, int dstSlicePitch = 0,
@@ -33,13 +33,13 @@ CUCOMP_DLL void dwtFloat3DForward(
 // perform scalar IDWT into one channel of an array with dstChannelCount interleaved channels (ie elemStride is dstChannelCount)
 // dpDest points to the correct channel within the first data element
 // dstChannelCount has to be between 1 and 4
-CUCOMP_DLL void dwtFloat2DInverse(
+void dwtFloat2DInverse(
     float* dpDest, float* dpBuffer, const float* dpSource,
     int sizeX, int sizeY, int dstChannelCount = 1,
     int dstRowPitch = 0,
     int srcRowPitch = 0,
     cudaStream_t stream = 0);
-CUCOMP_DLL void dwtFloat3DInverse(
+void dwtFloat3DInverse(
     float* dpDest, float* dpBuffer2, float* dpBuffer1, const float* dpSource,
     int sizeX, int sizeY, int sizeZ, int dstChannelCount = 1,
     int dstRowPitch = 0, int dstSlicePitch = 0,
@@ -47,28 +47,28 @@ CUCOMP_DLL void dwtFloat3DInverse(
     cudaStream_t stream = 0);
 // version of dwtFloatInverse that also performs de-quantization of highpass bands
 // dppHighpass is an array (size 3 for 2D, 7 for 3D) of pointers to the quantized highpass bands
-CUCOMP_DLL void dwtFloat2DInverseFromSymbols(
+void dwtFloat2DInverseFromSymbols(
     float* dpDest, float* dpBuffer,
     const float* dpLowpass, const ushort*const* dppHighpass, float quantStep,
     int sizeX, int sizeY, int dstChannelCount = 1,
     int dstRowPitch = 0,
     int lowpassRowPitch = 0,
     cudaStream_t stream = 0);
-CUCOMP_DLL void dwtFloat3DInverseFromSymbols(
+void dwtFloat3DInverseFromSymbols(
     float* dpDest, float* dpBuffer2, float* dpBuffer1,
     const float* dpLowpass, const ushort*const* dppHighpass, float quantStep,
     int sizeX, int sizeY, int sizeZ, int dstChannelCount = 1,
     int dstRowPitch = 0, int dstSlicePitch = 0,
     int lowpassRowPitch = 0, int lowpassSlicePitch = 0,
     cudaStream_t stream = 0);
-CUCOMP_DLL void dwtFloat2DInverseFromSymbols(
+void dwtFloat2DInverseFromSymbols(
     float* dpDest, float* dpBuffer,
     const float* dpLowpass, const uint*const* dppHighpass, float quantStep,
     int sizeX, int sizeY, int dstChannelCount = 1,
     int dstRowPitch = 0,
     int lowpassRowPitch = 0,
     cudaStream_t stream = 0);
-CUCOMP_DLL void dwtFloat3DInverseFromSymbols(
+void dwtFloat3DInverseFromSymbols(
     float* dpDest, float* dpBuffer2, float* dpBuffer1,
     const float* dpLowpass, const uint*const* dppHighpass, float quantStep,
     int sizeX, int sizeY, int sizeZ, int dstChannelCount = 1,
@@ -79,13 +79,13 @@ CUCOMP_DLL void dwtFloat3DInverseFromSymbols(
 // perform scalar DWT on one channel of a byte array with srcChannelCount interleaved channels (ie elemStride is srcChannelCount)
 // dpSource points to the correct channel within the first data element
 // srcChannelCount has to be between 1 and 4
-CUCOMP_DLL void dwtFloat2DForwardFromByte(
+void dwtFloat2DForwardFromByte(
     float* dpDest, float* dpBuffer, const byte* dpSource,
     int sizeX, int sizeY, int srcChannelCount = 1,
     int dstRowPitch = 0,
     int srcRowPitch = 0,
     cudaStream_t stream = 0);
-CUCOMP_DLL void dwtFloat3DForwardFromByte(
+void dwtFloat3DForwardFromByte(
     float* dpDest, float* dpBuffer2, float* dpBuffer1, const byte* dpSource,
     int sizeX, int sizeY, int sizeZ, int srcChannelCount = 1,
     int dstRowPitch = 0, int dstSlicePitch = 0,
@@ -94,27 +94,27 @@ CUCOMP_DLL void dwtFloat3DForwardFromByte(
 // perform scalar IDWT into one channel of a byte array with dstChannelCount interleaved channels (ie elemStride is dstChannelCount)
 // dpDest points to the correct channel within the first data element
 // dstChannelCount has to be between 1 and 4
-CUCOMP_DLL void dwtFloat2DInverseToByte(
+void dwtFloat2DInverseToByte(
     byte* dpDest, float* dpBuffer, const float* dpSource,
     int sizeX, int sizeY, int dstChannelCount = 1,
     int dstRowPitch = 0,
     int srcRowPitch = 0,
     cudaStream_t stream = 0);
-CUCOMP_DLL void dwtFloat3DInverseToByte(
+void dwtFloat3DInverseToByte(
     byte* dpDest, float* dpBuffer2, float* dpBuffer1, const float* dpSource,
     int sizeX, int sizeY, int sizeZ, int dstChannelCount = 1,
     int dstRowPitch = 0, int dstSlicePitch = 0,
     int srcRowPitch = 0, int srcSlicePitch = 0,
     cudaStream_t stream = 0);
 
-CUCOMP_DLL void dwtFloat2DInverseFromSymbolsToByte(
+void dwtFloat2DInverseFromSymbolsToByte(
     byte* dpDest, float* dpBuffer,
     const float* dpLowpass, const ushort*const* dppHighpass, float quantStep,
     int sizeX, int sizeY, int dstChannelCount = 1,
     int dstRowPitch = 0,
     int lowpassRowPitch = 0,
     cudaStream_t stream = 0);
-CUCOMP_DLL void dwtFloat3DInverseFromSymbolsToByte(
+void dwtFloat3DInverseFromSymbolsToByte(
     byte* dpDest, float* dpBuffer2, float* dpBuffer1,
     const float* dpLowpass, const ushort*const* dppHighpass, float quantStep,
     int sizeX, int sizeY, int sizeZ, int dstChannelCount = 1,
@@ -123,7 +123,7 @@ CUCOMP_DLL void dwtFloat3DInverseFromSymbolsToByte(
     cudaStream_t stream = 0);
 
 // lowpass-only version of forward DWT: stores only lowpass, discards highpass
-CUCOMP_DLL void dwtFloat2DForwardLowpassOnlyFromByte(
+void dwtFloat2DForwardLowpassOnlyFromByte(
     float* dpDest, float* dpBuffer, const byte* dpSource,
     int sizeX, int sizeY, int srcChannelCount = 1,
     int dstRowPitch = 0,
@@ -135,21 +135,21 @@ CUCOMP_DLL void dwtFloat2DForwardLowpassOnlyFromByte(
 
 // integer DWT (lifting) based on CDF 5/3 wavelet
 
-CUCOMP_DLL void dwtIntForward(
+void dwtIntForward(
     short* dpDest, short* dpBuffer, const short* dpSource,
     int sizeX, int sizeY, int sizeZ,
     int dstRowPitch = 0, int dstSlicePitch = 0,
     int srcRowPitch = 0, int srcSlicePitch = 0,
     cudaStream_t stream = 0);
 
-CUCOMP_DLL void dwtIntInverse(
+void dwtIntInverse(
     short* dpDest, short* dpBuffer, const short* dpSource,
     int sizeX, int sizeY, int sizeZ,
     int dstRowPitch = 0, int dstSlicePitch = 0,
     int srcRowPitch = 0, int srcSlicePitch = 0,
     cudaStream_t stream = 0);
 
-CUCOMP_DLL void dwtIntForwardLowpassOnly(
+void dwtIntForwardLowpassOnly(
     short* dpDest, short* dpBuffer, const short* dpSource,
     int sizeX, int sizeY,
     int dstRowPitch = 0,
