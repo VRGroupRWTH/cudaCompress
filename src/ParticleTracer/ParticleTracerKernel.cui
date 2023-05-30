@@ -1,0 +1,34 @@
+#include "cudaCommon.cui"
+
+// Main
+__global__ void kernelDimensionTest()
+{
+	uint32_t threadsPerBlock = getThreadsPerBlock();
+	uint32_t threadIdxInBlock = getThreadIdxInBlock();
+	uint32_t blockIdxInGrid = getBlockIdxInGrid();
+
+	uint32_t globalThreadIdx = getGlobalThreadIdx();
+	uint3 globalThreadPos = getGlobalThreadPos();
+
+	printf("threadIdx: %i | blockIdx: %i | globalIdx: %i | globalPos: (%i, %i, %i)\n", globalThreadIdx, blockIdxInGrid, threadIdxInBlock, globalThreadPos.x, globalThreadPos.y, globalThreadPos.z);
+}
+
+__global__ void seedParticles(const float* VelX, const float* VelY, const float* VelZ, float** PosX, float** PosY, float** PosZ)
+{
+	uint32_t globalThreadIdx = getGlobalThreadIdx();
+}
+
+__global__ void traceParticles(const float* VelX, const float* VelY, const float* VelZ,  const ParticleConfig* Config, int iteration)
+{
+	if (!checkThreadValid(Config->SeedsX, Config->SeedsY, Config->SeedsZ))
+	{
+		return;
+	}
+	
+	uint32_t globalThreadIdx = getGlobalThreadIdx();
+	uint3 globalThreadPos = getGlobalThreadPos();
+
+	uint offset = len_data[id];
+
+}
+

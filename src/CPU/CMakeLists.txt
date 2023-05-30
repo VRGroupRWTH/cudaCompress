@@ -1,58 +1,19 @@
-PROJECT(CPU)
+cmake_minimum_required(VERSION 3.18)
 
-cmake_minimum_required(VERSION 2.8)
+# Project Configuration
+# =====================
+project(CPU VERSION 1.0 LANGUAGES CXX CUDA)
 
-find_package(CUDA REQUIRED)
+# Dependencies
+# ============
+find_package(CUDAToolkit REQUIRED)
 find_package(OpenMP REQUIRED)
 
-## section: Macro
-MACRO(ADD_MSVC_PRECOMPILED_HEADER PrecompiledHeader PrecompiledSource SourcesVar)
-  IF(MSVC)
-    GET_FILENAME_COMPONENT(PrecompiledBasename ${PrecompiledHeader} NAME_WE)
-    SET(PrecompiledBinary "${CMAKE_CURRENT_BINARY_DIR}/${PrecompiledBasename}.pch")
-    SET(Sources ${${SourcesVar}})
-
-    SET_SOURCE_FILES_PROPERTIES(${PrecompiledSource}
-                                PROPERTIES COMPILE_FLAGS "/Yc\"${PrecompiledHeader}\" /Fp\"${PrecompiledBinary}\""
-                                           OBJECT_OUTPUTS "${PrecompiledBinary}")
-    SET_SOURCE_FILES_PROPERTIES(${Sources}
-                                PROPERTIES COMPILE_FLAGS "/Yu\"${PrecompiledBinary}\" /FI\"${PrecompiledBinary}\" /Fp\"${PrecompiledBinary}\""
-                                           OBJECT_DEPENDS "${PrecompiledBinary}")  
-    # Add precompiled header to SourcesVar
-    LIST(APPEND ${SourcesVar} ${PrecompiledSource})
-  ENDIF(MSVC)
-ENDMACRO(ADD_MSVC_PRECOMPILED_HEADER)
-
-option(CUDA_VERBOSE_PTXAS
-  "On to enable verbose output from the PTXAS assembler."
-  OFF
-  )
-
-SET (CMAKE_CXX_FLAGS -std=c++0x)
-
-## start setting
-SET (this_target CPU)
-SET(PROJECT_NAME CPU)
-
-add_definitions(-DUNICODE -D_UNICODE)
-
-set(CPU_INCLUDE_DIRS
-  ${PROJECT_SOURCE_DIR}/../../include
-  ${PROJECT_SOURCE_DIR}/../../src
-)
-
-## section: include directory
-INCLUDE_DIRECTORIES(
-  $(SolutionDir)include
-        $(SolutionDir)src
-        ${CPU_INCLUDE_DIRS}
-        ${CUDA_TOOLKIT_INCLUDE}
-  )
-
-## section: source files
-# Add your source files here (one file per line), please SORT in alphabetical order for future maintenance
-SET (${this_target}_SOURCE_FILES
-    ArithmeticCPU.cpp
+# Source files
+# ============
+## CPP
+SET (${PROJECT_NAME}_SOURCE_FILES
+  ArithmeticCPU.cpp
 	EncodeCPU.cpp
 	EncoderTestSuite.cpp
 	GolombRiceCPU.cpp
@@ -64,12 +25,11 @@ SET (${this_target}_SOURCE_FILES
 	RunLengthCPU.cpp
 	tools/stb_image.c
 	YCoCgCPU.cpp
-    )
+)
 
-## section: header files
-# Add your header files here(one file per line), please SORT in alphabetical order for future maintenance!
-SET(${this_target}_HEADER_FILES
-    ArithmeticCPU.h
+## H
+SET(${PROJECT_NAME}_HEADER_FILES
+  ArithmeticCPU.h
 	EncodeCPU.h
 	EncoderTestSuite.h
 	GolombRiceCPU.h
@@ -81,49 +41,54 @@ SET(${this_target}_HEADER_FILES
 	tools/Entropy.h
 	tools/stb_image.h
 	YCoCgCPU.h
-    )
+)
 
+# Library (Target)
+# ================
+ADD_LIBRARY(${PROJECT_NAME} STATIC ${${PROJECT_NAME}_SOURCE_FILES})
 
+# Target Configuration
+# ====================
+#SET (CMAKE_CXX_FLAGS -std=c++0x)
+#add_definitions(-DUNICODE -D_UNICODE)
+#ADD_DEFINITIONS(-D_CONSOLE)
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_11 cuda_std_11)
+target_compile_definitions(${PROJECT_NAME} PRIVATE UNICODE _UNICODE)
+target_compile_definitions(${PROJECT_NAME} PRIVATE _CONSOLE NOMINMAX)
 
-## section: precompiled header	
-#ADD_MSVC_PRECOMPILED_HEADER("precompiled.h" "precompiled.cpp" MySources)
-#ADD_LIBRARY(MyLibrary ${MySources})
+set(CPU_INCLUDE_DIRS
+  ${PROJECT_SOURCE_DIR}/../../include
+  ${PROJECT_SOURCE_DIR}/../../src
+)
 
-SET_SOURCE_FILES_PROPERTIES(${this_target}_HEADER_FILES
-                            PROPERTIES HEADER_FILE_ONLY TRUE)
-LIST(APPEND ${this_target}_SOURCE_FILES ${${this_target}_HEADER_FILES})
+## section: include directory
+#INCLUDE_DIRECTORIES(
+#  ${CPU_INCLUDE_DIRS}
+#  ${CUDA_TOOLKIT_INCLUDE}
+#)
+target_include_directories(${PROJECT_NAME} PUBLIC ${CPU_INCLUDE_DIRS} ${CUDA_TOOLKIT_INCLUDE})
 
-## section: add definitions
-#   add prefix -D. example> -DSHP
-#  - DO NOT add  the following definitions(already defined in ${OSP_DEFINITIONS}:
-#   -DSHP, -DWIN32, -D_WINDOWS, -D_DEBUG, -D_USRDLL, -D_CRT_SECURE_NO_DEPRECATE
-ADD_DEFINITIONS(
-    -D_CONSOLE
-    )
-
-## section: add target
-
-ADD_LIBRARY(${this_target} SHARED ${${this_target}_SOURCE_FILES})
-#ADD_EXECUTABLE(${this_target} ${${this_target}_SOURCE_FILES})
+#SET_SOURCE_FILES_PROPERTIES(${PROJECT_NAME}_HEADER_FILES PROPERTIES HEADER_FILE_ONLY TRUE)
+LIST(APPEND ${PROJECT_NAME}_SOURCE_FILES ${${PROJECT_NAME}_HEADER_FILES})
 
 ## section: add dependency
 # dependency determines overall build order.
-ADD_DEPENDENCIES(${this_target} 
-        ${CUDA_CUDART_LIBRARY}
-        ${BASE_DIR}/cudaCompress/build/lib/libcudaCompress.so
-	)
+#ADD_DEPENDENCIES(${PROJECT_NAME} 
+#        ${CUDA_CUDART_LIBRARY}
+#        ${BASE_DIR}/cudaCompress/build/lib/libcudaCompress.so
+#)
 
 ## section: set link libraries
-TARGET_LINK_LIBRARIES( ${this_target}
-        ${CUDA_CUDART_LIBRARY}
-        )
+#TARGET_LINK_LIBRARIES(${PROJECT_NAME}
+#  ${CUDA_CUDART_LIBRARY}
+#)
 
 install(FILES ${HFILES_PUBLIC}
   DESTINATION include
-  )
+)
 
 install(TARGETS CPU 
   DESTINATION lib
   EXPORT CPU-targets
-  )
+)
 

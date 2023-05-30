@@ -10,3 +10,5 @@
 
 /src/cudaCompress/vc110.pdb
 /*.suo
+
+build/
