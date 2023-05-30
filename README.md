@@ -1,36 +1,44 @@
-cudaCompress
-============
+# cudaCompress (feat. Particle Tracer)
 
-GPU data compression using CUDA
+DWT-based compression of scientific data using CUDA.
 
-Modified version for Linux from the original source 
-This version is developed and tested on Ubuntu 12.04 x64 using CMake 2.8 and CUDA 6.0
+This version is based on the [cudaCompress fork of jebbstewart](https://github.com/jebbstewart/cudaCompress) which included Linux and CMake support.
+The [original source code](https://github.com/m0bl0/cudaCompress) belongs to [m0bl0](https://github.com/m0bl0).
+
+Here, slight modifications towards a more modern CMake usage and cross-compatability to Windows were made.
+Additionally, a particle tracing usage case was added, featuring:
+- Synthetic 4D vectorfield
+- Workflow to compress 4D vector fields
+- Simple Runge-Kutta 4th order integrator 
+
 To build, clone the project then perform the following:
 
-```
+```bash
 cd cudaCompress
 mkdir build
 cd build
-cmake ..
+# Use CMAKE_CUDA_ARCHITECTURES variable suited for your hardware, 86 is suited for an RTX 3090
+cmake -DCMAKE_CUDA_ARCHITECTURES=86 .. 
 make
 ```
 
 To run the example, from the base directory (ie: cudaCompress) do the following:
 
-```
+```bash
 ./build/examples
 ```
 
-<h2>Original Readme</h2>
+# Original Readme
+
 This is the source code for the cudaCompress library, which was used in the papers
 
 Interactive Editing of GigaSample Terrain Fields
-by Marc Treib, Florian Reichl, Stefan Auer, and Rüdiger Westermann
+by Marc Treib, Florian Reichl, Stefan Auer, and Rï¿½diger Westermann
 published in Computer Graphics Forum 31,2 (Proc. Eurographics 2012)
 http://wwwcg.in.tum.de/research/research/publications/2012/interactive-editing-of-gigasample-terrain-fields.html
 
 Turbulence Visualization at the Terascale on Desktop PCs
-by Marc Treib, Kai Bürger, Florian Reichl, Charles Meneveau, Alex Szalay, and Rüdiger Westermann
+by Marc Treib, Kai Bï¿½rger, Florian Reichl, Charles Meneveau, Alex Szalay, and Rï¿½diger Westermann
 published in IEEE Transactions on Computer Graphics and Visualization (Proc. IEEE Scientific Visualization 2012)
 http://wwwcg.in.tum.de/research/research/publications/2012/turbulence-visualization-at-the-terascale-on-desktop-pcs.html
 
