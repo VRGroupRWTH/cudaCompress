@@ -877,9 +877,10 @@ void TestParticleKernel()
 }
 
 template <typename T>
-void compressWithCudaCompress(const Vectorfield<T>& src_vf, CompVectorfield& dst_vf)
+void compressWithCudaCompress(const Vectorfield<T>& src_vf, CompVectorfield& dst_vf, bool copyDevice = false)
 {
-	dst_vf.dData.resize(src_vf.Dimensions.w);
+	if (copyDevice)
+	    dst_vf.dData.resize(src_vf.Dimensions.w);
 
 	// Allocate GPU arrays to upload uncompressed data
 	std::vector<float*> dp_Buffer_Images(src_vf.ChannelCount);
@@ -919,19 +920,22 @@ void compressWithCudaCompress(const Vectorfield<T>& src_vf, CompVectorfield& dst
 
 		cudaSafeCall(cudaDeviceSynchronize());
 
-		dst_vf.dData[t].resize(src_vf.ChannelCount);
-		for (size_t c = 0; c < src_vf.ChannelCount; c++)
+		if (copyDevice)
 		{
-			// If a gpu buffer already exists, destroy
-			if (dst_vf.dData[t][c])
-			{
-				cudaSafeCall(cudaFree(dp_Buffer_Images[c]));
-			}
+		    dst_vf.dData[t].resize(src_vf.ChannelCount);
+		    for (size_t c = 0; c < src_vf.ChannelCount; c++)
+		    {
+			    // If a gpu buffer already exists, destroy
+			    if (dst_vf.dData[t][c])
+			    {
+				    cudaSafeCall(cudaFree(dp_Buffer_Images[c]));
+			    }
 
-			// create gpu buffer and copy content
-			auto BytesCompressed = uint(dst_vf.hData[t][c].size()) * sizeof(uint);
-		    CreateDevicePointer(&dst_vf.dData[t][c], BytesCompressed);
-			cudaSafeCall(cudaMemcpy(dst_vf.dData[t][c], dst_vf.hData[t][c].data(), BytesCompressed, cudaMemcpyHostToDevice));
+			    // create gpu buffer and copy content
+			    auto BytesCompressed = uint(dst_vf.hData[t][c].size()) * sizeof(uint);
+		        CreateDevicePointer(&dst_vf.dData[t][c], BytesCompressed);
+			    cudaSafeCall(cudaMemcpy(dst_vf.dData[t][c], dst_vf.hData[t][c].data(), BytesCompressed, cudaMemcpyHostToDevice));
+		    }
 		}
 	}
 
