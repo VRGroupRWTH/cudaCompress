@@ -111,7 +111,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
 >)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE UNICODE _UNICODE)
-target_compile_definitions(${PROJECT_NAME} PRIVATE _CONSOLE DNOMINMAX)
+target_compile_definitions(${PROJECT_NAME} PRIVATE _CONSOLE NOMINMAX)
 
 set(CUDA_COMPRESS_INCLUDE_DIRS
   ${PROJECT_SOURCE_DIR}/../../include

@@ -18,7 +18,7 @@ SET (${PROJECT_NAME}_SOURCE_FILES
 	tthread/tinythread.cpp
 	CompressVolume.cpp
 	GPUResources.cpp
-	Tests.cpp
+	ParticleHelpers.cpp
 	main.cpp
 )
 
@@ -31,17 +31,18 @@ SET(${PROJECT_NAME}_HEADER_FILES
 	GPUResources.h
 	helper_math.h
 	ParticleHelpers.h
-	Tests.h
 )
 
 SET(${PROJECT_NAME}_CU_FILES
 	ParticleTracer.cu
 	cudaTests.cu
+	cudaHelpers.cu
 )
 
 SET(${PROJECT_NAME}_CUH_FILES
 	ParticleTracer.cuh
 	cudaTests.cuh
+	cudaHelpers.cuh
 )
 
 

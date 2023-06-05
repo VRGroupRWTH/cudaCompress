@@ -1,97 +1,8 @@
 #pragma once
-#include <vector_types.h>
-#include <cuda_runtime.h>
 #include <assert.h>
-
-cudaArray_t Create3DArray(int channelCount, uint4 Dimensions, cudaChannelFormatKind ChannelFormat = cudaChannelFormatKindFloat)
-{
-	cudaChannelFormatDesc channelDesc;
-	channelDesc.f = ChannelFormat;
-
-	if (ChannelFormat == cudaChannelFormatKindFloat)
-	{
-		channelDesc.x = (channelCount > 0) * 32;
-		channelDesc.y = (channelCount > 1) * 32;
-		channelDesc.z = (channelCount > 2) * 32;
-		channelDesc.w = (channelCount > 3) * 32;
-	}
-
-	if (ChannelFormat == cudaChannelFormatKindSignedBlockCompressed6H)
-	{
-		channelDesc.x = (channelCount > 0) * 16;
-		channelDesc.y = (channelCount > 1) * 16;
-		channelDesc.z = (channelCount > 2) * 16;
-		channelDesc.w = (channelCount > 3) * 0;
-	}
-
-	if (ChannelFormat == cudaChannelFormatKindUnsignedBlockCompressed6H)
-	{
-		channelDesc.x = (channelCount > 0) * 16;
-		channelDesc.y = (channelCount > 1) * 16;
-		channelDesc.z = (channelCount > 2) * 16;
-		channelDesc.w = (channelCount > 3) * 0;
-	}
-
-	cudaArray_t datasetArray;	// Opaque data buffer optimized for texture fetches
-	auto size = make_cudaExtent(Dimensions.x, Dimensions.y, Dimensions.z);
-	cudaSafeCall(cudaMalloc3DArray(&datasetArray, &channelDesc, size, cudaArrayDefault));
-
-	return datasetArray;
-}
-
-void UploadTo3DArray(const float* SrcPtr, cudaArray_t DstPtr)
-{
-	cudaChannelFormatDesc channelDesc;
-	cudaExtent extents;
-	uint flags;
-	cudaArrayGetInfo(&channelDesc, &extents, &flags, DstPtr);
-
-	int channelCount = (channelDesc.x > 0) + (channelDesc.y > 0) + (channelDesc.z > 0) + (channelDesc.w > 0);
-	uint3 Dimensions{ (uint)extents.width, (uint)extents.height, (uint)extents.depth };
-
-	cudaMemcpy3DParms CopyParams{};
-    auto Extents = make_cudaExtent(Dimensions.x, Dimensions.y, Dimensions.z);
-	auto BytePerVector = channelCount * sizeof(float);
-	
-	CopyParams.srcPtr = make_cudaPitchedPtr((float*)SrcPtr, (size_t)Dimensions.x * BytePerVector, Dimensions.x, Dimensions.y);
-	CopyParams.dstArray = DstPtr;
-	CopyParams.extent = Extents;
-	CopyParams.kind = cudaMemcpyHostToDevice;
-	cudaSafeCall(cudaMemcpy3D(&CopyParams));
-}
-
-cudaTextureObject_t Create3DArrayTexture(cudaArray_t ArrayPtr)
-{
-	cudaChannelFormatDesc channelDesc;
-	cudaExtent extents;
-	uint flags;
-	cudaArrayGetInfo(&channelDesc, &extents, &flags, ArrayPtr);
-	int channelCount = (channelDesc.x > 0) + (channelDesc.y > 0) + (channelDesc.z > 0) + (channelDesc.w > 0);
-	uint3 Dimensions{ (uint)extents.width, (uint)extents.height, (uint)extents.depth };
-
-	// create texture object
-	cudaResourceDesc resDesc;
-	memset(&resDesc, 0, sizeof(resDesc));
-	resDesc.resType = cudaResourceTypeArray;
-	resDesc.res.linear.devPtr = ArrayPtr;
-	resDesc.res.linear.desc = channelDesc;
-	resDesc.res.linear.sizeInBytes = (size_t)Dimensions.x * (size_t)Dimensions.y * (size_t)Dimensions.z * (size_t)(channelCount) * sizeof(float);
-	//resDesc.res.linear.sizeInBytes = MemoryRequirements.size;
-
-	cudaTextureDesc texDesc;
-	memset(&texDesc, 0, sizeof(texDesc));
-	texDesc.readMode = cudaReadModeElementType;
-	texDesc.normalizedCoords = 0;
-	texDesc.addressMode[0] = cudaAddressModeClamp;
-	texDesc.addressMode[1] = cudaAddressModeClamp;
-	texDesc.addressMode[2] = cudaAddressModeClamp;
-	texDesc.filterMode = cudaFilterModeLinear;
-	
-	cudaTextureObject_t tex = 0;
-	cudaSafeCall(cudaCreateTextureObject(&tex, &resDesc, &texDesc, NULL));
-
-	return tex;
-}
+#include <vector>
+#include "global.h"
+#include "cudaUtil.h"
 
 template <typename T>
 void CreateDevicePointer(T** d_ptr, size_t bytes)
@@ -113,16 +24,16 @@ struct DatasetInterface
 		if (dimension == 4)
 			return (size_t)Dimensions.x * (size_t)Dimensions.y * (size_t)Dimensions.z * (size_t)Dimensions.w;
 
-	    if (dimension == 3)
+		if (dimension == 3)
 			return (size_t)Dimensions.x * (size_t)Dimensions.y * (size_t)Dimensions.z;
 
-	    if (dimension == 2)
+		if (dimension == 2)
 			return (size_t)Dimensions.x * (size_t)Dimensions.y;
 
-	    if (dimension == 1)
+		if (dimension == 1)
 			return (size_t)Dimensions.x;
 
-	    return 0;
+		return 0;
 	}
 
 	size_t NumScalars(int dimension = 4) const
@@ -130,6 +41,7 @@ struct DatasetInterface
 		return NumVectors(dimension) * (size_t)ChannelCount;
 	}
 };
+
 
 template <typename T>
 struct Vectorfield : public DatasetInterface
@@ -140,7 +52,7 @@ struct Vectorfield : public DatasetInterface
 struct CompVectorfield : public DatasetInterface
 {
 	// time<channel<data>>
-    std::vector<std::vector<std::vector<uint>>> hData;
+	std::vector<std::vector<std::vector<uint>>> hData;
 	std::vector<std::vector<uint*>> dData;
 
 	int compressIterations = 10;
@@ -149,7 +61,7 @@ struct CompVectorfield : public DatasetInterface
 	int huffmanBits = 0;
 	bool b_RLEOnlyOnLvl0 = true;
 
-    size_t DecompressedBytes()
+	size_t DecompressedBytes()
 	{
 		return NumScalars() * sizeof(float);
 	}
@@ -188,6 +100,7 @@ struct Buffers3C
 	float* z;
 };
 
+
 struct TextureManager
 {
 public:
@@ -197,32 +110,6 @@ public:
 		ArrayObjects.push_back(Create3DArray(ChannelCount, Dimensions));
 		UploadTo3DArray(data_ptr, ArrayObjects.back());
 		TextureObjects.push_back(Create3DArrayTexture(ArrayObjects.back()));
-	}
-
-	void DeleteTexture(cudaTextureObject_t TextureObject)
-	{
-		assert(TextureObjects.size() == ArrayObjects.size() && "Unsymmetric number of texture objects and arrays!");
-
-		int idx = 0;
-		for (const auto texObjs : TextureObjects)
-		{
-			if (texObjs == TextureObject)
-				break;
-
-			idx++;
-		}
-
-		for (auto i = idx; i < TextureObjects.size() - 1; i++)
-		{
-			std::swap(TextureObjects[i], TextureObjects[i + 1]);
-			std::swap(ArrayObjects[i], ArrayObjects[i + 1]);
-		}
-
-		cudaSafeCall(cudaDestroyTextureObject(TextureObjects.back()));
-		cudaSafeCall(cudaFreeArray(ArrayObjects.back()));
-
-	    TextureObjects.pop_back();
-		ArrayObjects.pop_back();
 	}
 
 	size_t Num() const
@@ -237,92 +124,21 @@ public:
 		return TextureObjects[idx];
 	}
 
-	cudaTextureObject_t* GetDeviceTextureObjects(std::vector<uint> ids)
-	{
-		std::vector<cudaTextureObject_t> selected;
-		for (const auto idx : ids)
-		{
-			assert(idx < TextureObjects.size() && "Textures out of bounds!");
-			selected.push_back(TextureObjects[idx]);
-		}
-
-		cudaTextureObject_t* d_textures;
-		CreateDevicePointer(&d_textures, ids.size() * sizeof(cudaTextureObject_t));
-		cudaSafeCall(cudaMemcpy(d_textures, selected.data(), selected.size() * sizeof(cudaTextureObject_t), cudaMemcpyHostToDevice));
-
-	    DeviceTextureRefs.push_back(d_textures);
-
-	    return d_textures;
-	}
-
-	cudaTextureObject_t* GetDeviceTextureObjects()
-	{
-		cudaTextureObject_t* d_textures;
-		CreateDevicePointer(&d_textures, TextureObjects.size() * sizeof(cudaTextureObject_t));
-		cudaSafeCall(cudaMemcpy(d_textures, TextureObjects.data(), TextureObjects.size() * sizeof(cudaTextureObject_t), cudaMemcpyHostToDevice));
-
-		DeviceTextureRefs.push_back(d_textures);
-
-		return d_textures;
-	}
-
-	Textures3C GetDeviceTextureObjects3C()
-	{
-		assert((TextureObjects.size() % 3) == 0 && "Requested RGB as single Channel but did not match available textures");
-
-		Textures3C d_textures{};
-
-		auto NumTexturesPerChannel = TextureObjects.size() / 3;
-		CreateDevicePointer(&d_textures.x, NumTexturesPerChannel * sizeof(cudaTextureObject_t));
-		CreateDevicePointer(&d_textures.y, NumTexturesPerChannel * sizeof(cudaTextureObject_t));
-		CreateDevicePointer(&d_textures.z, NumTexturesPerChannel * sizeof(cudaTextureObject_t));
-
-		cudaMemcpy(d_textures.x, TextureObjects.data(), NumTexturesPerChannel * sizeof(cudaTextureObject_t), cudaMemcpyHostToDevice);
-		cudaMemcpy(d_textures.y, TextureObjects.data() + 1 * NumTexturesPerChannel, NumTexturesPerChannel * sizeof(cudaTextureObject_t), cudaMemcpyHostToDevice);
-		cudaMemcpy(d_textures.z, TextureObjects.data() + 2 * NumTexturesPerChannel, NumTexturesPerChannel * sizeof(cudaTextureObject_t), cudaMemcpyHostToDevice);
-
-		DeviceTextureRefs.push_back(d_textures.x);
-		DeviceTextureRefs.push_back(d_textures.y);
-		DeviceTextureRefs.push_back(d_textures.z);
-
-		return d_textures;
-	}
-
 	cudaArray_t GetArrayObject(uint idx)
 	{
 		assert(idx < ArrayObjects.size() && "Arrays out of bounds!");
 		return ArrayObjects[idx];
 	}
 
-	~TextureManager()
-	{
-	    for (auto& tex : TextureObjects)
-	    {
-			cudaSafeCall(cudaDestroyTextureObject(tex));
-	    }
-
-		for (auto& array : ArrayObjects)
-		{
-			cudaSafeCall(cudaFreeArray(array));
-		}
-
-		for (auto& texref : DeviceTextureRefs)
-		{
-			cudaSafeCall(cudaFree(texref));
-		}
-	}
+	void DeleteTexture(cudaTextureObject_t TextureObject);
+	cudaTextureObject_t* GetDeviceTextureObjects(std::vector<uint> ids);
+	cudaTextureObject_t* GetDeviceTextureObjects();
+	Textures3C GetDeviceTextureObjects3C();
+	
+	~TextureManager();
 
 private:
-	uint64_t GetVRAM() const
-	{
-		int nDevices;
-		cudaGetDeviceCount(&nDevices);
-
-		cudaDeviceProp props;
-		cudaGetDeviceProperties(&props, 0);
-
-		return props.totalGlobalMem;
-	}
+	uint64_t GetVRAM() const;
 
 public:
 	std::vector<cudaTextureObject_t> TextureObjects;
@@ -331,3 +147,12 @@ public:
 private:
 	std::vector<cudaTextureObject_t*> DeviceTextureRefs;
 };
+
+
+// Integration helpers (CPU equivalents of GPU implementations)
+inline float4 lerp_CPU(float4 a, float4 b, float t);
+float4 buf3D_CPU(float4* data_ptr, uint4 Dimensions, float x, float y, float z, uint t);
+float3 buf4D_CPU(float4* data_ptr, uint4 Dimensions, float x, float y, float z, float t);
+float3 rk4_CPU(float4* data, uint4 Dimensions, float3 pos, float dt, float time);
+bool checkParticleValid_CPU(float3 particlePos, uint4 fieldDims, float time);
+void traceParticles_CPU(float4* data, uint4 Dimensions, IntegrationConfig IntegrationConf, uint3 particleId3D);

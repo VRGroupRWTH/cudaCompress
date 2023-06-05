@@ -1,5 +1,7 @@
 #include "cudaCommon.cui"
+#include "ParticleHelpers.h"
 #define INTERPOLATE_BUFFER
+
 
 // Main
 // Simply prints the internal thread index logic.

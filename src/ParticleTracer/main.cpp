@@ -1,10 +1,12 @@
-#include "Tests.h"
-#include "ParticleTracer.cuh"
+#include "cudaTests.cuh"
 
 int main(int argc, char** argv)
 {
-	//TestCudaCompress();
-	//TestTexture();
-	//TestParticleTracer();
-	TestCompressedParticleTracer();
+	//TestCUDAKernel();
+	//TestCudaCompressKernel();
+	//TestTextureKernel();
+	//TestParticleKernel();
+	TestCompressedParticleKernel();
+
+	return 0;
 }

@@ -18,23 +18,23 @@ inline T flerp(T v0, T v1, T t) {
 }
 
 // Flat indices
-__device__ inline uint32_t getThreadsPerBlock()
+__device__ inline uint getThreadsPerBlock()
 {
 	return blockDim.x * blockDim.y * blockDim.z;
 }
 
-__device__ inline uint32_t getThreadIdxInBlock()
+__device__ inline uint getThreadIdxInBlock()
 {
 	return threadIdx.x + (blockDim.x * threadIdx.y) + (blockDim.x * blockDim.y * threadIdx.z);
 }
 
-__device__ inline uint32_t getBlockIdxInGrid()
+__device__ inline uint getBlockIdxInGrid()
 {
 	
 	return blockIdx.x  + (gridDim.x * blockIdx.y) + (gridDim.x * gridDim.y * blockIdx.z);
 }
 
-__device__ inline uint32_t getGlobalThreadIdx()
+__device__ inline uint getGlobalThreadIdx()
 {
 	return getBlockIdxInGrid() * getThreadsPerBlock() + getThreadIdxInBlock();
 }
