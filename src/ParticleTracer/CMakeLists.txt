@@ -70,7 +70,7 @@ set(PARTICLETRACER_INCLUDE_DIRS
 
 ## section: set link libraries
 target_link_libraries(${PROJECT_NAME}
-	PRIVATE CUDA::cudart_static cudaCompress OpenMP::OpenMP_CXX glm::glm
+	PRIVATE CUDA::cudart_static cudaCompress OpenMP::OpenMP_CXX
 )
 
 ## section: include directory

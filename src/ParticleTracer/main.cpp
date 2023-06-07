@@ -6,7 +6,9 @@ int main(int argc, char** argv)
 	//TestCudaCompressKernel();
 	//TestTextureKernel();
 	//TestParticleKernel();
-	TestCompressedParticleKernel();
+	//TestCompressedParticleKernel();
 
+	//TraceABC();
+	TraceFile("E:/Simoni/ctbl3d.nc.raw");
 	return 0;
 }

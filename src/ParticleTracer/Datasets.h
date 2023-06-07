@@ -1,7 +1,8 @@
 #pragma once
 #define PI 3.14159265359
-#include <glm/vec3.hpp>
-#include <glm/gtx/compatibility.hpp>
+#include <cmath>
+//#include <glm/vec3.hpp>
+//#include <glm/gtx/compatibility.hpp>
 #include "cudaUtil.h"
 
 
@@ -79,21 +80,21 @@ std::vector<T> GenerateTestDataset(uint4 dims, int channels, bool interleaved)
 // The parameter interleaved determines whether (true) the vectors are saved as xyzw,xyzw,...
 // or (false) xx...,yy...,zz...,ww...
 template <typename T>
-void GenerateABCDataset(T* dst, int DimX, int DimY, int DimZ, int DimT, int channels, bool interleaved)
+void GenerateABCDataset(T* dst, size_t DimX, size_t DimY, size_t DimZ, size_t DimT, int channels, bool interleaved)
 {
 	// ROI selection
-	int DimX0 = -100;
-	int DimX1 = DimX0 + DimX;
-	int DimY0 = 0;
-	int DimY1 = DimY0 + DimY;
-	int DimZ0 = -100;
-	int DimZ1 = DimZ0 + DimZ;
-	int DimT0 = 0;
-	int DimT1 = DimT0 + DimT;
+	size_t DimX0 = -100;
+	size_t DimX1 = DimX0 + DimX;
+	size_t DimY0 = 0;
+	size_t DimY1 = DimY0 + DimY;
+	size_t DimZ0 = -100;
+	size_t DimZ1 = DimZ0 + DimZ;
+	size_t DimT0 = 0;
+	size_t DimT1 = DimT0 + DimT;
 
 	// Initializing good ABC parameters which distributes the flow field dynamics over a larger field
-	const float A_PARAM = glm::sqrt(3);
-	const float B_PARAM = glm::sqrt(2);
+	const float A_PARAM = std::sqrt(3);
+	const float B_PARAM = std::sqrt(2);
 	const float C_PARAM = 1.0;
 	const float c_pos = 0.05;
 	const float c_t1 = 0.05;
@@ -102,19 +103,19 @@ void GenerateABCDataset(T* dst, int DimX, int DimY, int DimZ, int DimT, int chan
 	uint64_t offset = 0;
 	for (auto t = DimT0; t < DimT1; t++) {
 		const float time = t;
-		const float a_coeff = A_PARAM + c_t1 * time * glm::sin(PI * time * c_t2);
+		const float a_coeff = A_PARAM + c_t1 * time * std::sin(PI * time * c_t2);
 
 		for (auto z = DimZ0; z < DimZ1; z++) {
 			for (auto y = DimY0; y < DimY1; y++) {
 				for (auto x = DimX0; x < DimX1; x++) {
 					// (discrete) position in the dataset
-					const glm::vec3 pos(x, y, z);
+					const float3 pos{ x, y, z };
 					// velocity at this position
-					const glm::vec3 velo(
-						a_coeff * glm::sin(pos.z * c_pos) + B_PARAM * glm::cos(pos.y * c_pos),
-						B_PARAM * glm::sin(pos.x * c_pos) + C_PARAM * glm::cos(pos.z * c_pos),
-						C_PARAM * glm::sin(pos.y * c_pos) + a_coeff * glm::cos(pos.x * c_pos)
-					);
+					const float3 velo{
+						a_coeff * std::sin(pos.z * c_pos) + B_PARAM * std::cos(pos.y * c_pos),
+						B_PARAM * std::sin(pos.x * c_pos) + C_PARAM * std::cos(pos.z * c_pos),
+						C_PARAM * std::sin(pos.y * c_pos) + a_coeff * std::cos(pos.x * c_pos)
+					};
 
 					// save in data buffer
 					if (interleaved)
@@ -133,13 +134,13 @@ void GenerateABCDataset(T* dst, int DimX, int DimY, int DimZ, int DimT, int chan
 					else
 					{
 						if (channels > 0)
-						    dst[offset + 0 * DimX * DimY * DimZ * DimT] = velo.x;
+						    dst[offset + 0U * DimX * DimY * DimZ * DimT] = velo.x;
 						if (channels > 1)
-						    dst[offset + 1 * DimX * DimY * DimZ * DimT] = velo.y;
+						    dst[offset + 1U * DimX * DimY * DimZ * DimT] = velo.y;
 						if (channels > 2)
-						    dst[offset + 2 * DimX * DimY * DimZ * DimT] = velo.z;
+						    dst[offset + 2U * DimX * DimY * DimZ * DimT] = velo.z;
 						if (channels > 3)
-							dst[offset + 3 * DimX * DimY * DimZ * DimT] = 1.0f;
+							dst[offset + 3U * DimX * DimY * DimZ * DimT] = 1.0f;
 
 						offset += 1;
 					}

@@ -2,47 +2,36 @@
 #include "ParticleHelpers.h"
 #define INTERPOLATE_BUFFER
 
-
-// Main
-// Simply prints the internal thread index logic.
-__global__ void kernelDimensionTest()
+__device__ inline float4 uv(float4 pos, float3 dims)
 {
-	uint32_t threadsPerBlock = getThreadsPerBlock();
-	uint32_t threadIdxInBlock = getThreadIdxInBlock();
-	uint32_t blockIdxInGrid = getBlockIdxInGrid();
-
-	uint32_t globalThreadIdx = getGlobalThreadIdx();
-	uint3 globalThreadPos = getGlobalThreadPos();
-
-	printf("threadIdx: %i | blockIdx: %i | globalIdx: %i | globalPos: (%i, %i, %i)\n", threadIdxInBlock, blockIdxInGrid, globalThreadIdx, globalThreadPos.x, globalThreadPos.y, globalThreadPos.z);
+	return { (pos.x + 0.5f) / (dims.x - 1),
+				(pos.y + 0.5f) / (dims.y - 1),
+				(pos.z + 0.5f) / (dims.z - 1),
+				0.0f };
 }
 
-__device__ inline float3 uv(float3 pos, float3 dims)
+__device__ inline float4 uv(float x, float y, float z, float3 dims)
 {
-    return {	(pos.x + 0.5f) / (dims.x - 1),
-	            (pos.y + 0.5f) / (dims.y - 1),
-	            (pos.z + 0.5f) / (dims.z - 1) };
+	return { (x + 0.5f) / (dims.x - 1),
+				(y + 0.5f) / (dims.y - 1),
+				(z + 0.5f) / (dims.z - 1),
+				0.0f };
 }
 
-__device__ inline float3 uv(float x, float y, float z, float3 dims)
+__device__ inline float4 uv_abs(float4 pos)
 {
-    return {	(x + 0.5f) / (dims.x - 1),
-	            (y + 0.5f) / (dims.y - 1),
-	            (z + 0.5f) / (dims.z - 1) };
+	return { (pos.x + 0.5f),
+				(pos.y + 0.5f),
+				(pos.z + 0.5f),
+				0.0f };
 }
 
-__device__ inline float3 uv_abs(float3 pos)
+__device__ inline float4 uv_abs(float x, float y, float z)
 {
-	return {	(pos.x + 0.5f),
-	            (pos.y + 0.5f),
-				(pos.z + 0.5f) };
-}
-
-__device__ inline float3 uv_abs(float x, float y, float z)
-{
-	return {	(x + 0.5f),
+	return { (x + 0.5f),
 				(y + 0.5f),
-				(z + 0.5f) };
+				(z + 0.5f),
+				0.0f };
 }
 
 __device__ float4 buf3D(float4* data_ptr, uint4 Dimensions, float x, float y, float z, uint t)
@@ -51,11 +40,11 @@ __device__ float4 buf3D(float4* data_ptr, uint4 Dimensions, float x, float y, fl
 	//   P0: Strictly floored position, always valid
 	//   P1: Strictly ceiled position, may exceed dataset boundaries
 	int3 P0 = int3{ max((int)x, 0),
-	                max((int)y, 0),
-	                max((int)z, 0) };
+					max((int)y, 0),
+					max((int)z, 0) };
 	int3 P1 = int3{ min(P0.x + 1, (int)Dimensions.x - 1),
-	                min(P0.y + 1, (int)Dimensions.y - 1),
-	                min(P0.z + 1, (int)Dimensions.z - 1) };
+					min(P0.y + 1, (int)Dimensions.y - 1),
+					min(P0.z + 1, (int)Dimensions.z - 1) };
 	t = min(t, Dimensions.w - 1);
 
 	// To prevent indexing outside of the buffer
@@ -109,7 +98,7 @@ __device__ float4 buf3D(float4* data_ptr, uint4 Dimensions, float x, float y, fl
 	return lerp(c, d, lam_z);
 }
 
-__device__ float3 buf3D(float3* data_ptr, uint4 Dimensions, float x, float y, float z, uint t)
+__device__ float4 buf3D(float3* data_ptr, uint4 Dimensions, float x, float y, float z, uint t)
 {
 	// P0 & P1 are reference points which span a cube that contains the given position:
 	//   P0: Strictly floored position, always valid
@@ -170,10 +159,10 @@ __device__ float3 buf3D(float3* data_ptr, uint4 Dimensions, float x, float y, fl
 	float3 d = lerp(j0, j1, lam_y);
 
 	// Trilinearly interpolated vector (3D)
-	return lerp(c, d, lam_z);
+	return make_float4(lerp(c, d, lam_z), 1.0f);
 }
 
-__device__ float3 buf3Dx3(float* data_ptr_x, float* data_ptr_y, float* data_ptr_z, uint4 Dimensions, float x, float y, float z, uint t)
+__device__ float4 buf3Dx3(float* data_ptr_x, float* data_ptr_y, float* data_ptr_z, uint4 Dimensions, float x, float y, float z, uint t)
 {
 	// P0 & P1 are reference points which span a cube that contains the given position:
 	//   P0: Strictly floored position, always valid
@@ -197,8 +186,8 @@ __device__ float3 buf3Dx3(float* data_ptr_x, float* data_ptr_y, float* data_ptr_
 
 	// Lower depth
 	uint offsetT = min(t, Dimensions.w - 1) * elems3D;
-	uint offset1 = offsetT + P0.z * elems2D + P0.y * Dimensions.x            + P0.x;
-	uint offset2 = offsetT + P0.z * elems2D + P0.y * Dimensions.x            + min(P1.x, maxX);
+	uint offset1 = offsetT + P0.z * elems2D + P0.y * Dimensions.x + P0.x;
+	uint offset2 = offsetT + P0.z * elems2D + P0.y * Dimensions.x + min(P1.x, maxX);
 	uint offset3 = offsetT + P0.z * elems2D + min(P1.y, maxY) * Dimensions.x + min(P1.x, maxX);
 	uint offset4 = offsetT + P0.z * elems2D + min(P1.y, maxY) * Dimensions.x + P0.x;
 
@@ -230,32 +219,32 @@ __device__ float3 buf3Dx3(float* data_ptr_x, float* data_ptr_y, float* data_ptr_
 	float3 d = lerp(j0, j1, lam_y);
 
 	// Trilinearly interpolated vector (3D)
-	return lerp(c, d, lam_z);
+	return make_float4(lerp(c, d, lam_z), 1.0f);
 }
 
-__device__ float3 buf4D(Buffers3C data_buffers, uint4 Dimensions, float x, float y, float z, float t)
+__device__ float4 buf4D(Buffers3C data_buffers, uint4 Dimensions, float x, float y, float z, float t)
 {
-	float3 vector0 = buf3Dx3(data_buffers.x, data_buffers.y, data_buffers.z, Dimensions, x, y, z, uint(t));
-	float3 vector1 = buf3Dx3(data_buffers.x, data_buffers.y, data_buffers.z, Dimensions, x, y, z, uint(t) + 1);
+	float4 vector0 = buf3Dx3(data_buffers.x, data_buffers.y, data_buffers.z, Dimensions, x, y, z, uint(t));
+	float4 vector1 = buf3Dx3(data_buffers.x, data_buffers.y, data_buffers.z, Dimensions, x, y, z, uint(t) + 1);
 
 	return lerp(vector0, vector1, fracf(t));
 }
 
-__device__ float3 buf4D(float3* data_ptr, uint4 Dimensions, float x, float y, float z, float t)
-{
-	float3 vector0 = buf3D(data_ptr, Dimensions, x, y, z, uint(t));
-	float3 vector1 = buf3D(data_ptr, Dimensions, x, y, z, uint(t) + 1);
-
-	return lerp(vector0, vector1, fracf(t));
-}
-
-
-__device__ float3 buf4D(float4* data_ptr, uint4 Dimensions, float x, float y, float z, float t)
+__device__ float4 buf4D(float3* data_ptr, uint4 Dimensions, float x, float y, float z, float t)
 {
 	float4 vector0 = buf3D(data_ptr, Dimensions, x, y, z, uint(t));
 	float4 vector1 = buf3D(data_ptr, Dimensions, x, y, z, uint(t) + 1);
 
-	return make_float3(lerp(vector0, vector1, fracf(t)));
+	return lerp(vector0, vector1, fracf(t));
+}
+
+
+__device__ float4 buf4D(float4* data_ptr, uint4 Dimensions, float x, float y, float z, float t)
+{
+	float4 vector0 = buf3D(data_ptr, Dimensions, x, y, z, uint(t));
+	float4 vector1 = buf3D(data_ptr, Dimensions, x, y, z, uint(t) + 1);
+
+	return lerp(vector0, vector1, fracf(t));
 }
 
 __device__ float4 tex3Dx3(cudaTextureObject_t xTex, cudaTextureObject_t yTex, cudaTextureObject_t zTex, float x, float y, float z)
@@ -269,7 +258,7 @@ __device__ float4 tex3Dx3(cudaTextureObject_t xTex, cudaTextureObject_t yTex, cu
 	return texel;
 }
 
-__device__ inline float3 tex4D(cudaTextureObject_t* textures, float x, float y, float z, float t)
+__device__ inline float4 tex4D(cudaTextureObject_t* textures, float x, float y, float z, float t)
 {
 	int t0 = int(t);
 	int t1 = t0 + 1;
@@ -277,118 +266,123 @@ __device__ inline float3 tex4D(cudaTextureObject_t* textures, float x, float y, 
 	float4 texel0 = tex3D<float4>(textures[t0], x, y, z);
 	float4 texel1 = tex3D<float4>(textures[t1], x, y, z);
 
-	return make_float3(lerp(texel0, texel1, fracf(t)));
+	return lerp(texel0, texel1, fracf(t));
 }
 
-__device__ inline float3 tex4D(Textures3C textures, float x, float y, float z, float t)
+__device__ inline float4 tex4D(Textures3C textures, float x, float y, float z, float t)
 {
 	int t0 = int(t);
-    int t1 = t0 + 1;
+	int t1 = t0 + 1;
 
 	float4 texel0 = tex3Dx3(textures.x[t0], textures.y[t0], textures.z[t0], x, y, z);
 	float4 texel1 = tex3Dx3(textures.x[t1], textures.y[t1], textures.z[t1], x, y, z);
 
-	return make_float3(lerp(texel0, texel1, fracf(t)));
+	return lerp(texel0, texel1, fracf(t));
 }
 
-__device__ float3 rk4(cudaTextureObject_t* textures, uint4 Dimensions, float3 pos, float dt, float time)
+__device__ float4 rk4(cudaTextureObject_t* textures, uint4 Dimensions, float4 pos, float dt, float time)
 {
-	float3 k1 = uv_abs(pos);
-	float3 v1 = tex4D(textures, k1.x, k1.y, k1.z, time);				// v1 = F(x)
+	float4 k1 = uv_abs(pos);
+	float4 v1 = tex4D(textures, k1.x, k1.y, k1.z, time);				// v1 = F(x)
 
-	float3 k2 = uv_abs(pos + v1 * 0.5f * dt);
-	float3 v2 = tex4D(textures, k2.x, k2.y, k2.z, time + 0.5 * dt);		// v2 = F(x + 0.5 * v1 * dt)
+	float4 k2 = uv_abs(pos + v1 * 0.5f * dt);
+	float4 v2 = tex4D(textures, k2.x, k2.y, k2.z, time + 0.5 * dt);		// v2 = F(x + 0.5 * v1 * dt)
 
-	float3 k3 = uv_abs(pos + v2 * 0.5f * dt);
-	float3 v3 = tex4D(textures, k3.x, k3.y, k3.z, time + 0.5 * dt);		// v3 = F(x + 0.5 * v2 * dt)
+	float4 k3 = uv_abs(pos + v2 * 0.5f * dt);
+	float4 v3 = tex4D(textures, k3.x, k3.y, k3.z, time + 0.5 * dt);		// v3 = F(x + 0.5 * v2 * dt)
 
-	float3 k4 = uv_abs(pos + v3 * dt);
-	float3 v4 = tex4D(textures, k4.x, k4.y, k4.z, time + dt);			// v4 = F(x + 1.0 * v3 * dt)
+	float4 k4 = uv_abs(pos + v3 * dt);
+	float4 v4 = tex4D(textures, k4.x, k4.y, k4.z, time + dt);			// v4 = F(x + 1.0 * v3 * dt)
 
-	return float3{	v1.x + 2.0f * v2.x + 2.0f * v3.x + v4.x / 6.0f,
+	return float4{ v1.x + 2.0f * v2.x + 2.0f * v3.x + v4.x / 6.0f,
 					v1.y + 2.0f * v2.y + 2.0f * v3.y + v4.y / 6.0f,
-					v1.z + 2.0f * v2.z + 2.0f * v3.z + v4.z / 6.0f };
+					v1.z + 2.0f * v2.z + 2.0f * v3.z + v4.z / 6.0f,
+					1.0f };
 }
 
-__device__ float3 rk4(Textures3C textures, uint4 Dimensions, float3 pos, float dt, float time)
+__device__ float4 rk4(Textures3C textures, uint4 Dimensions, float4 pos, float dt, float time)
 {
-	float3 k1 = uv_abs(pos);
-	float3 v1 = tex4D(textures, k1.x, k1.y, k1.z, time);				// v1 = F(x)
+	float4 k1 = uv_abs(pos);
+	float4 v1 = tex4D(textures, k1.x, k1.y, k1.z, time);				// v1 = F(x)
 
-	float3 k2 = uv_abs(pos + v1 * 0.5f * dt);
-	float3 v2 = tex4D(textures, k2.x, k2.y, k2.z, time + 0.5 * dt);		// v2 = F(x + 0.5 * v1 * dt)
+	float4 k2 = uv_abs(pos + v1 * 0.5f * dt);
+	float4 v2 = tex4D(textures, k2.x, k2.y, k2.z, time + 0.5 * dt);		// v2 = F(x + 0.5 * v1 * dt)
 
-	float3 k3 = uv_abs(pos + v2 * 0.5f * dt);
-	float3 v3 = tex4D(textures, k3.x, k3.y, k3.z, time + 0.5 * dt);		// v3 = F(x + 0.5 * v2 * dt)
+	float4 k3 = uv_abs(pos + v2 * 0.5f * dt);
+	float4 v3 = tex4D(textures, k3.x, k3.y, k3.z, time + 0.5 * dt);		// v3 = F(x + 0.5 * v2 * dt)
 
-	float3 k4 = uv_abs(pos + v3 * dt);
-	float3 v4 = tex4D(textures, k4.x, k4.y, k4.z, time + dt);			// v4 = F(x + 1.0 * v3 * dt)
+	float4 k4 = uv_abs(pos + v3 * dt);
+	float4 v4 = tex4D(textures, k4.x, k4.y, k4.z, time + dt);			// v4 = F(x + 1.0 * v3 * dt)
 
-	return float3{	v1.x + 2.0f * v2.x + 2.0f * v3.x + v4.x / 6.0f,
+	return float4{ v1.x + 2.0f * v2.x + 2.0f * v3.x + v4.x / 6.0f,
 					v1.y + 2.0f * v2.y + 2.0f * v3.y + v4.y / 6.0f,
-					v1.z + 2.0f * v2.z + 2.0f * v3.z + v4.z / 6.0f };
+					v1.z + 2.0f * v2.z + 2.0f * v3.z + v4.z / 6.0f,
+					1.0f };
 }
 
-__device__ float3 rk4(float3* data, uint4 Dimensions, float3 pos, float dt, float time)
+__device__ float4 rk4(float3* data, uint4 Dimensions, float4 pos, float dt, float time)
 {
-	float3 k1 = pos;
-	float3 v1 = buf4D(data, Dimensions, k1.x, k1.y, k1.z, time);				// v1 = F(x)
+	float4 k1 = pos;
+	float4 v1 = buf4D(data, Dimensions, k1.x, k1.y, k1.z, time);				// v1 = F(x)
 
-	float3 k2 = pos + v1 * 0.5f * dt;
-	float3 v2 = buf4D(data, Dimensions, k2.x, k2.y, k2.z, time + 0.5 * dt);		// v2 = F(x + 0.5 * v1 * dt)
+	float4 k2 = pos + v1 * 0.5f * dt;
+	float4 v2 = buf4D(data, Dimensions, k2.x, k2.y, k2.z, time + 0.5 * dt);		// v2 = F(x + 0.5 * v1 * dt)
 
-	float3 k3 = pos + v2 * 0.5f * dt;
-	float3 v3 = buf4D(data, Dimensions, k3.x, k3.y, k3.z, time + 0.5 * dt);		// v3 = F(x + 0.5 * v2 * dt)
+	float4 k3 = pos + v2 * 0.5f * dt;
+	float4 v3 = buf4D(data, Dimensions, k3.x, k3.y, k3.z, time + 0.5 * dt);		// v3 = F(x + 0.5 * v2 * dt)
 
-	float3 k4 = pos + v3 * dt;
-	float3 v4 = buf4D(data, Dimensions, k4.x, k4.y, k4.z, time + dt);			// v4 = F(x + 1.0 * v3 * dt)
+	float4 k4 = pos + v3 * dt;
+	float4 v4 = buf4D(data, Dimensions, k4.x, k4.y, k4.z, time + dt);			// v4 = F(x + 1.0 * v3 * dt)
 
-	return float3{	v1.x + 2.0f * v2.x + 2.0f * v3.x + v4.x / 6.0f,
+	return float4{ v1.x + 2.0f * v2.x + 2.0f * v3.x + v4.x / 6.0f,
 					v1.y + 2.0f * v2.y + 2.0f * v3.y + v4.y / 6.0f,
-					v1.z + 2.0f * v2.z + 2.0f * v3.z + v4.z / 6.0f };
+					v1.z + 2.0f * v2.z + 2.0f * v3.z + v4.z / 6.0f,
+					1.0f };
 }
 
-__device__ float3 rk4(float4* data, uint4 Dimensions, float3 pos, float dt, float time)
+__device__ float4 rk4(float4* data, uint4 Dimensions, float4 pos, float dt, float time)
 {
-	float3 k1 = pos;
-	float3 v1 = buf4D(data, Dimensions, k1.x, k1.y, k1.z, time);				// v1 = F(x)
+	float4 k1 = pos;
+	float4 v1 = buf4D(data, Dimensions, k1.x, k1.y, k1.z, time);				// v1 = F(x)
 
-	float3 k2 = pos + v1 * 0.5f * dt;
-	float3 v2 = buf4D(data, Dimensions, k2.x, k2.y, k2.z, time + 0.5 * dt);		// v2 = F(x + 0.5 * v1 * dt)
+	float4 k2 = pos + v1 * 0.5f * dt;
+	float4 v2 = buf4D(data, Dimensions, k2.x, k2.y, k2.z, time + 0.5 * dt);		// v2 = F(x + 0.5 * v1 * dt)
 
-	float3 k3 = pos + v2 * 0.5f * dt;
-	float3 v3 = buf4D(data, Dimensions, k3.x, k3.y, k3.z, time + 0.5 * dt);		// v3 = F(x + 0.5 * v2 * dt)
+	float4 k3 = pos + v2 * 0.5f * dt;
+	float4 v3 = buf4D(data, Dimensions, k3.x, k3.y, k3.z, time + 0.5 * dt);		// v3 = F(x + 0.5 * v2 * dt)
 
-	float3 k4 = pos + v3 * dt;
-	float3 v4 = buf4D(data, Dimensions, k4.x, k4.y, k4.z, time + dt);			// v4 = F(x + 1.0 * v3 * dt)
+	float4 k4 = pos + v3 * dt;
+	float4 v4 = buf4D(data, Dimensions, k4.x, k4.y, k4.z, time + dt);			// v4 = F(x + 1.0 * v3 * dt)
 
-	return float3{	v1.x + 2.0f * v2.x + 2.0f * v3.x + v4.x / 6.0f,
+	return float4{ v1.x + 2.0f * v2.x + 2.0f * v3.x + v4.x / 6.0f,
 					v1.y + 2.0f * v2.y + 2.0f * v3.y + v4.y / 6.0f,
-					v1.z + 2.0f * v2.z + 2.0f * v3.z + v4.z / 6.0f };
+					v1.z + 2.0f * v2.z + 2.0f * v3.z + v4.z / 6.0f,
+					1.0f };
 }
 
 
-__device__ float3 rk4(Buffers3C data, uint4 Dimensions, float3 pos, float dt, float time)
+__device__ float4 rk4(Buffers3C data, uint4 Dimensions, float4 pos, float dt, float time)
 {
-	float3 k1 = pos;
-	float3 v1 = buf4D(data, Dimensions, k1.x, k1.y, k1.z, time);				// v1 = F(x)
+	float4 k1 = pos;
+	float4 v1 = buf4D(data, Dimensions, k1.x, k1.y, k1.z, time);				// v1 = F(x)
 
-	float3 k2 = pos + v1 * 0.5f * dt;
-	float3 v2 = buf4D(data, Dimensions, k2.x, k2.y, k2.z, time + 0.5 * dt);		// v2 = F(x + 0.5 * v1 * dt)
+	float4 k2 = pos + v1 * 0.5f * dt;
+	float4 v2 = buf4D(data, Dimensions, k2.x, k2.y, k2.z, time + 0.5 * dt);		// v2 = F(x + 0.5 * v1 * dt)
 
-	float3 k3 = pos + v2 * 0.5f * dt;
-	float3 v3 = buf4D(data, Dimensions, k3.x, k3.y, k3.z, time + 0.5 * dt);		// v3 = F(x + 0.5 * v2 * dt)
+	float4 k3 = pos + v2 * 0.5f * dt;
+	float4 v3 = buf4D(data, Dimensions, k3.x, k3.y, k3.z, time + 0.5 * dt);		// v3 = F(x + 0.5 * v2 * dt)
 
-	float3 k4 = pos + v3 * dt;
-	float3 v4 = buf4D(data, Dimensions, k4.x, k4.y, k4.z, time + dt);			// v4 = F(x + 1.0 * v3 * dt)
+	float4 k4 = pos + v3 * dt;
+	float4 v4 = buf4D(data, Dimensions, k4.x, k4.y, k4.z, time + dt);			// v4 = F(x + 1.0 * v3 * dt)
 
-	return float3{ v1.x + 2.0f * v2.x + 2.0f * v3.x + v4.x / 6.0f,
+	return float4{ v1.x + 2.0f * v2.x + 2.0f * v3.x + v4.x / 6.0f,
 					v1.y + 2.0f * v2.y + 2.0f * v3.y + v4.y / 6.0f,
-					v1.z + 2.0f * v2.z + 2.0f * v3.z + v4.z / 6.0f };
+					v1.z + 2.0f * v2.z + 2.0f * v3.z + v4.z / 6.0f,
+					1.0f };
 }
 
 template <typename T>
-__global__ void seedParticles(T textures, uint4 Dimensions, IntegrationConfig IntegrationConf, float3* ParticlePositions, float3* ParticleVelocities, uint32_t* ParticleTraceLength)
+__global__ void seedParticles(T textures, uint4 Dimensions, IntegrationConfig IntegrationConf, float4* ParticlePositions, float4* ParticleVelocities, uint32_t* ParticleTraceLength)
 {
 	if (!checkThreadValid(IntegrationConf.Seeds))
 	{
@@ -404,8 +398,8 @@ __global__ void seedParticles(T textures, uint4 Dimensions, IntegrationConfig In
 
 	//printf("Particle Idx: %i | Thread Pos: %i, %i, %i\n", particleIdx, getGlobalThreadPos().x, getGlobalThreadPos().y, getGlobalThreadPos().z);
 
-	float3 pos = make_float3(particleId3D) * IntegrationConf.SeedsStride;
-	float3 velo = rk4(textures, Dimensions, pos, IntegrationConf.dt, 0.0f);
+	float4 pos = make_float4(particleId3D.x, particleId3D.y, particleId3D.z, 1) * make_float4(IntegrationConf.SeedsStride, 1.0f);
+	float4 velo = rk4(textures, Dimensions, pos, IntegrationConf.dt, 0.0f);
 
 	ParticlePositions[bufferIndex] = pos;
 	ParticleVelocities[bufferIndex] = velo;
@@ -413,7 +407,7 @@ __global__ void seedParticles(T textures, uint4 Dimensions, IntegrationConfig In
 }
 
 template <typename T>
-__global__ void traceParticles(T textures, uint4 Dimensions, IntegrationConfig IntegrationConf, float3* ParticlePositions, float3* ParticleVelocities, uint32_t* ParticleTraceLength)
+__global__ void traceParticles(T textures, uint4 Dimensions, IntegrationConfig IntegrationConf, float4* ParticlePositions, float4* ParticleVelocities, uint32_t* ParticleTraceLength)
 {
 	if (!checkThreadValid(IntegrationConf.Seeds))
 	{
@@ -429,8 +423,8 @@ __global__ void traceParticles(T textures, uint4 Dimensions, IntegrationConfig I
 	uint bufferIndex = particleId1D * (IntegrationConf.Steps + 1);	// Start-Index of the current particles trace
 	uint offset = ParticleTraceLength[particleId1D];				// Trajectory length of the current particle
 
-	float3 pos = ParticlePositions[bufferIndex + offset - 1];
-	float3 velo = ParticleVelocities[bufferIndex + offset - 1];
+	float4 pos = ParticlePositions[bufferIndex + offset - 1];
+	float4 velo = ParticleVelocities[bufferIndex + offset - 1];
 	float integrationTime = 0.0;
 
 	int StepsRemaining = IntegrationConf.Steps + 1 - offset;
@@ -456,9 +450,24 @@ __global__ void traceParticles(T textures, uint4 Dimensions, IntegrationConfig I
 	ParticleTraceLength[particleId1D] = offset;					// Trajectory length of the current particle
 }
 
-__global__ void testTexture(cudaTextureObject_t tex, uint4 Dimensions, float3 coords)
+
+// Main
+// Simply prints the internal thread index logic.
+__global__ void kernelDimensionTest()
 {
-	float3 uv_coords = uv_abs(coords + 0.5);
+	uint32_t threadsPerBlock = getThreadsPerBlock();
+	uint32_t threadIdxInBlock = getThreadIdxInBlock();
+	uint32_t blockIdxInGrid = getBlockIdxInGrid();
+
+	uint32_t globalThreadIdx = getGlobalThreadIdx();
+	uint3 globalThreadPos = getGlobalThreadPos();
+
+	printf("threadIdx: %i | blockIdx: %i | globalIdx: %i | globalPos: (%i, %i, %i)\n", threadIdxInBlock, blockIdxInGrid, globalThreadIdx, globalThreadPos.x, globalThreadPos.y, globalThreadPos.z);
+}
+
+__global__ void testTexture(cudaTextureObject_t tex, uint4 Dimensions, float4 coords)
+{
+	float4 uv_coords = uv_abs(coords + 0.5);
 	float4 texel = tex3D<float4>(tex, uv_coords.x, uv_coords.y, uv_coords.z);
 	printf("Texel: %.2f, %.2f, %.2f, %.2f\n", texel.x, texel.y, texel.z, texel.w);
 }
@@ -473,7 +482,7 @@ __global__ void testTextureVector(cudaTextureObject_t tex, uint4 Dimensions)
 		{
 			for (int y = 0; y < Dimensions.y; y++)
 			{
-				float3 uv_coords = uv_abs(make_float3(x, y, z) + 0.5f);
+				float4 uv_coords = uv_abs(make_float4(x, y, z, 1.0) + 0.5f);
 				float4 t = tex3D<float4>(tex, uv_coords.x, uv_coords.y, uv_coords.z);
 				texel += t;
 				//printf("t: %.2f, %.2f, %.2f, %.2f\n", t.x, t.y, t.z, t.w);
@@ -495,8 +504,8 @@ __global__ void testTextureScalar(cudaTextureObject_t tex_r, cudaTextureObject_t
 		{
 			for (int y = 0; y < Dimensions.y; y++)
 			{
-				float3 uv_coords = uv_abs(make_float3(x, y, z) + 0.5f);
-			    texel.x += tex3D<float4>(tex_r, uv_coords.x, uv_coords.y, uv_coords.z).x;
+				float4 uv_coords = uv_abs(make_float4(x, y, z, 1.0) + 0.5f);
+				texel.x += tex3D<float4>(tex_r, uv_coords.x, uv_coords.y, uv_coords.z).x;
 				texel.y += tex3D<float4>(tex_g, uv_coords.x, uv_coords.y, uv_coords.z).x;
 				texel.z += tex3D<float4>(tex_b, uv_coords.x, uv_coords.y, uv_coords.z).x;
 			}
@@ -516,21 +525,21 @@ __global__ void testBufferVector(float4* data_ptr, uint4 Dimensions)
 	{
 		for (int x = 0; x < Dimensions.x; x++)
 		{
-		    for (int y = 0; y < Dimensions.y; y++)
+			for (int y = 0; y < Dimensions.y; y++)
 			{
 				vector += buf3D(data_ptr, Dimensions, x + 0.5f, y + 0.5f, z + 0.5f, 0.0f);
 			}
 		}
 	}
 
-    //printf("Vector: %.2f, %.2f, %.2f\n", vector.x, vector.y, vector.z);
+	//printf("Vector: %.2f, %.2f, %.2f\n", vector.x, vector.y, vector.z);
 }
 
 __global__ void testBufferScalar(float* data_ptr_x, float* data_ptr_y, float* data_ptr_z, uint4 Dimensions)
 {
-	float3 vector = make_float3(0.0);
+	float4 vector = make_float4(0.0);
 
-    //uint offset = 0;
+	//uint offset = 0;
 	uint elems2D = Dimensions.y * Dimensions.x;
 	for (int z = 0; z < Dimensions.z; z++)
 	{

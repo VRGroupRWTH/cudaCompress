@@ -59,7 +59,7 @@ __device__ inline bool checkThreadValid(uint3 seeds)
 	return true;
 }
 
-__device__ inline bool checkParticleValid(float3 particlePos, uint4 fieldDims, float time)
+__device__ inline bool checkParticleValid(float4 particlePos, uint4 fieldDims, float time)
 {
 	if (particlePos.x > (fieldDims.x - 1) || particlePos.x < 0.0) {
 		return false;

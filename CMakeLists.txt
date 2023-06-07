@@ -49,7 +49,6 @@ find_package(OpenMP REQUIRED)
 
 # Subprojects
 # ============
-add_subdirectory(extern/glm)
 add_subdirectory(src/cudaCompress)
 add_subdirectory(src/CPU)
 add_subdirectory(src/examples)

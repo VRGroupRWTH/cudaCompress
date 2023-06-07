@@ -1,6 +1,5 @@
 #include "cudaTests.cuh"
 
-#include <vector>
 #include <stdio.h>
 #include <cstdint>
 #include <chrono>
@@ -13,6 +12,7 @@
 
 #include "cudaHelpers.cuh"
 #include "cudaTestKernel.cui"
+#include <fstream>
 
 void PrintDeviceInformation()
 {
@@ -248,12 +248,12 @@ double Launch1Texture4CIntegrationTest(const Vectorfield<T>& vf, const Integrati
 	size_t maxNumPoints = conf.SeedsNum() * (conf.Steps + 1);
 
 	// Device Buffers
-	float3* d_OutPosBuffer = nullptr;
-	float3* d_OutVeloBuffer = nullptr;
+	float4* d_OutPosBuffer = nullptr;
+	float4* d_OutVeloBuffer = nullptr;
 	uint32_t* d_TraceLengthBuffer = nullptr;
 
-	CreateDevicePointer(&d_OutPosBuffer, maxNumPoints * sizeof(float3));
-	CreateDevicePointer(&d_OutVeloBuffer, maxNumPoints * sizeof(float3));
+	CreateDevicePointer(&d_OutPosBuffer, maxNumPoints * sizeof(float4));
+	CreateDevicePointer(&d_OutVeloBuffer, maxNumPoints * sizeof(float4));
 	CreateDevicePointer(&d_TraceLengthBuffer, conf.SeedsNum() * sizeof(uint32_t));
 
 	// Recording Events
@@ -285,17 +285,17 @@ double Launch1Texture4CIntegrationTest(const Vectorfield<T>& vf, const Integrati
 	printf("1 Texture time: %.6f ms\n", time);
 
 	// Device to Host copy
-	std::vector<float3> ParticlePositions(conf.SeedsNum() * (conf.Steps + 1));
-	std::vector<float3> ParticleVelocities(conf.SeedsNum() * (conf.Steps + 1));
+	std::vector<float4> ParticlePositions(conf.SeedsNum() * (conf.Steps + 1));
+	std::vector<float4> ParticleVelocities(conf.SeedsNum() * (conf.Steps + 1));
 	std::vector<uint32_t> ParticleTraceLength(conf.SeedsNum());
 
-	cudaSafeCall(cudaMemcpy(ParticlePositions.data(), d_OutPosBuffer, ParticlePositions.size() * sizeof(float3), cudaMemcpyDeviceToHost));
-	cudaSafeCall(cudaMemcpy(ParticleVelocities.data(), d_OutVeloBuffer, ParticleVelocities.size() * sizeof(float3), cudaMemcpyDeviceToHost));
+	cudaSafeCall(cudaMemcpy(ParticlePositions.data(), d_OutPosBuffer, ParticlePositions.size() * sizeof(float4), cudaMemcpyDeviceToHost));
+	cudaSafeCall(cudaMemcpy(ParticleVelocities.data(), d_OutVeloBuffer, ParticleVelocities.size() * sizeof(float4), cudaMemcpyDeviceToHost));
 	cudaSafeCall(cudaMemcpy(ParticleTraceLength.data(), d_TraceLengthBuffer, ParticleTraceLength.size() * sizeof(uint32_t), cudaMemcpyDeviceToHost));
 	cudaSafeCall(cudaDeviceSynchronize());
 
 	// Read
-	float3 ParticleSum = make_float3(0.0f);
+	float4 ParticleSum = make_float4(0.0f);
 	for (auto i = 0; i < ParticleTraceLength[0]; i++)
 	{
 		ParticleSum += ParticlePositions[i];
@@ -312,7 +312,7 @@ double Launch1Texture4CIntegrationTest(const Vectorfield<T>& vf, const Integrati
 }
 
 template <typename T>
-double Launch3Texture1CIntegrationTest(const Vectorfield<T>& vf, const IntegrationConfig& conf, dim3 numBlocks, dim3 threadsPerBlock, int iterations = 2)
+std::vector<double> Launch3Texture1CIntegrationTest(const Vectorfield<T>& vf, const IntegrationConfig& conf, dim3 numBlocks, dim3 threadsPerBlock, int iterations = 2)
 {
 	TextureManager texManager{};
 
@@ -323,13 +323,13 @@ double Launch3Texture1CIntegrationTest(const Vectorfield<T>& vf, const Integrati
 	}
 
 	// Device Buffers
-	float3* d_OutPosBuffer = nullptr;
-	float3* d_OutVeloBuffer = nullptr;
+	float4* d_OutPosBuffer = nullptr;
+	float4* d_OutVeloBuffer = nullptr;
 	uint32_t* d_TraceLengthBuffer = nullptr;
 
 	size_t maxNumPoints = conf.SeedsNum() * (conf.Steps + 1);
-	CreateDevicePointer(&d_OutPosBuffer, maxNumPoints * sizeof(float3));
-	CreateDevicePointer(&d_OutVeloBuffer, maxNumPoints * sizeof(float3));
+	CreateDevicePointer(&d_OutPosBuffer, maxNumPoints * sizeof(float4));
+	CreateDevicePointer(&d_OutVeloBuffer, maxNumPoints * sizeof(float4));
 	CreateDevicePointer(&d_TraceLengthBuffer, conf.SeedsNum() * sizeof(uint32_t));
 
 	auto d_textures3C = texManager.GetDeviceTextureObjects3C();
@@ -340,10 +340,11 @@ double Launch3Texture1CIntegrationTest(const Vectorfield<T>& vf, const Integrati
 	cudaEventCreate(&stop);
 
 	// Kernel Execution
-	cudaEventRecord(start);
-
+	
+	std::vector<double> times;
     for (auto i = 0; i < iterations; i++)
 	{
+		cudaEventRecord(start);
 		seedParticles << <numBlocks, threadsPerBlock >> > (
 			d_textures3C,
 			vf.Dimensions, conf,
@@ -352,34 +353,37 @@ double Launch3Texture1CIntegrationTest(const Vectorfield<T>& vf, const Integrati
 			d_textures3C,
 			vf.Dimensions, conf,
 			d_OutPosBuffer, d_OutVeloBuffer, d_TraceLengthBuffer);
+		cudaEventRecord(stop);
+
+		cudaSafeCall(cudaEventSynchronize(stop));
+		float milliseconds = 0;
+		cudaEventElapsedTime(&milliseconds, start, stop);
+		times.push_back(milliseconds);
 	}
 
-    cudaEventRecord(stop);
-
 	cudaSafeCall(cudaDeviceSynchronize());
-	cudaSafeCall(cudaEventSynchronize(stop));
 
-	// Measure
-	float milliseconds = 0;
-	cudaEventElapsedTime(&milliseconds, start, stop);
-	cudaEventDestroy(start);
-	cudaEventDestroy(stop);
-
-	auto time = milliseconds / (double)iterations;
-	printf("3 Textures time: %.6f ms\n", time);
+	//// Measure
+	//float milliseconds = 0;
+	//cudaEventElapsedTime(&milliseconds, start, stop);
+	//cudaEventDestroy(start);
+	//cudaEventDestroy(stop);
+	//
+	//auto time = milliseconds / (double)iterations;
+	//printf("3 Textures time: %.6f ms\n", time);
 
 	// Device to Host copy
-	std::vector<float3> ParticlePositions(conf.SeedsNum() * (conf.Steps + 1));
-	std::vector<float3> ParticleVelocities(conf.SeedsNum() * (conf.Steps + 1));
+	std::vector<float4> ParticlePositions(conf.SeedsNum() * (conf.Steps + 1));
+	std::vector<float4> ParticleVelocities(conf.SeedsNum() * (conf.Steps + 1));
 	std::vector<uint32_t> ParticleTraceLength(conf.SeedsNum());
 
-	cudaSafeCall(cudaMemcpy(ParticlePositions.data(), d_OutPosBuffer, ParticlePositions.size() * sizeof(float3), cudaMemcpyDeviceToHost));
-	cudaSafeCall(cudaMemcpy(ParticleVelocities.data(), d_OutVeloBuffer, ParticleVelocities.size() * sizeof(float3), cudaMemcpyDeviceToHost));
+	cudaSafeCall(cudaMemcpy(ParticlePositions.data(), d_OutPosBuffer, ParticlePositions.size() * sizeof(float4), cudaMemcpyDeviceToHost));
+	cudaSafeCall(cudaMemcpy(ParticleVelocities.data(), d_OutVeloBuffer, ParticleVelocities.size() * sizeof(float4), cudaMemcpyDeviceToHost));
 	cudaSafeCall(cudaMemcpy(ParticleTraceLength.data(), d_TraceLengthBuffer, ParticleTraceLength.size() * sizeof(uint32_t), cudaMemcpyDeviceToHost));
 	cudaSafeCall(cudaDeviceSynchronize());
 
 	// Read
-	float3 ParticleSum = make_float3(0.0f);
+	float4 ParticleSum = make_float4(0.0f);
 	for (auto i = 0; i < ParticleTraceLength[0]; i++)
 	{
 		ParticleSum += ParticlePositions[i];
@@ -392,7 +396,7 @@ double Launch3Texture1CIntegrationTest(const Vectorfield<T>& vf, const Integrati
 	cudaSafeCall(cudaFree(d_OutVeloBuffer));
 	cudaSafeCall(cudaFree(d_TraceLengthBuffer));
 
-	return time;
+	return times;
 }
 
 template <typename T>
@@ -404,13 +408,13 @@ float Launch1BufferIntegrationTest(const Vectorfield<T>& vf, const IntegrationCo
 	cudaSafeCall(cudaMemcpy(d_dataset, vf.Data.data(), vf.Data.size() * sizeof(float), cudaMemcpyHostToDevice));
 
 	// Device Buffers
-	float3* d_OutPosBuffer = nullptr;
-	float3* d_OutVeloBuffer = nullptr;
+	float4* d_OutPosBuffer = nullptr;
+	float4* d_OutVeloBuffer = nullptr;
 	uint32_t* d_TraceLengthBuffer = nullptr;
 
 	size_t maxNumPoints = conf.SeedsNum() * (conf.Steps + 1);
-	CreateDevicePointer(&d_OutPosBuffer, maxNumPoints * sizeof(float3));
-	CreateDevicePointer(&d_OutVeloBuffer, maxNumPoints * sizeof(float3));
+	CreateDevicePointer(&d_OutPosBuffer, maxNumPoints * sizeof(float4));
+	CreateDevicePointer(&d_OutVeloBuffer, maxNumPoints * sizeof(float4));
 	CreateDevicePointer(&d_TraceLengthBuffer, conf.SeedsNum() * sizeof(uint32_t));
 
 	// Recording Events
@@ -451,17 +455,17 @@ float Launch1BufferIntegrationTest(const Vectorfield<T>& vf, const IntegrationCo
 	printf("1 Buffer time: %.6f ms\n", time);
 
 	// Device to Host copy
-	std::vector<float3> ParticlePositions(conf.SeedsNum() * (conf.Steps + 1));
-	std::vector<float3> ParticleVelocities(conf.SeedsNum() * (conf.Steps + 1));
+	std::vector<float4> ParticlePositions(conf.SeedsNum() * (conf.Steps + 1));
+	std::vector<float4> ParticleVelocities(conf.SeedsNum() * (conf.Steps + 1));
 	std::vector<uint32_t> ParticleTraceLength(conf.SeedsNum());
 
-	cudaSafeCall(cudaMemcpy(ParticlePositions.data(), d_OutPosBuffer, ParticlePositions.size() * sizeof(float3), cudaMemcpyDeviceToHost));
-	cudaSafeCall(cudaMemcpy(ParticleVelocities.data(), d_OutVeloBuffer, ParticleVelocities.size() * sizeof(float3), cudaMemcpyDeviceToHost));
+	cudaSafeCall(cudaMemcpy(ParticlePositions.data(), d_OutPosBuffer, ParticlePositions.size() * sizeof(float4), cudaMemcpyDeviceToHost));
+	cudaSafeCall(cudaMemcpy(ParticleVelocities.data(), d_OutVeloBuffer, ParticleVelocities.size() * sizeof(float4), cudaMemcpyDeviceToHost));
 	cudaSafeCall(cudaMemcpy(ParticleTraceLength.data(), d_TraceLengthBuffer, ParticleTraceLength.size() * sizeof(uint32_t), cudaMemcpyDeviceToHost));
 	cudaSafeCall(cudaDeviceSynchronize());
 
 	// Read
-	float3 ParticleSum = make_float3(0.0f);
+	float4 ParticleSum = make_float4(0.0f);
 	for (auto i = 0; i < ParticleTraceLength[0]; i++)
 	{
 		ParticleSum += ParticlePositions[i];
@@ -494,13 +498,13 @@ double Launch3BufferIntegrationTest(const Vectorfield<T>& vf, const IntegrationC
 	cudaSafeCall(cudaMemcpy(d_buffers.z, vf.Data.data() + 2 * elems4D, elems4D * sizeof(float), cudaMemcpyHostToDevice));
 
 	// Device Buffers
-	float3* d_OutPosBuffer = nullptr;
-	float3* d_OutVeloBuffer = nullptr;
+	float4* d_OutPosBuffer = nullptr;
+	float4* d_OutVeloBuffer = nullptr;
 	uint32_t* d_TraceLengthBuffer = nullptr;
 
 	size_t maxNumPoints = conf.SeedsNum() * (conf.Steps + 1);
-	CreateDevicePointer(&d_OutPosBuffer, maxNumPoints * sizeof(float3));
-	CreateDevicePointer(&d_OutVeloBuffer, maxNumPoints * sizeof(float3));
+	CreateDevicePointer(&d_OutPosBuffer, maxNumPoints * sizeof(float4));
+	CreateDevicePointer(&d_OutVeloBuffer, maxNumPoints * sizeof(float4));
 	CreateDevicePointer(&d_TraceLengthBuffer, conf.SeedsNum() * sizeof(uint32_t));
 
 	// Recording Events
@@ -541,17 +545,17 @@ double Launch3BufferIntegrationTest(const Vectorfield<T>& vf, const IntegrationC
 	printf("3 Buffer time: %.6f ms\n", time);
 
 	// Device to Host copy
-	std::vector<float3> ParticlePositions(conf.SeedsNum() * (conf.Steps + 1));
-	std::vector<float3> ParticleVelocities(conf.SeedsNum() * (conf.Steps + 1));
+	std::vector<float4> ParticlePositions(conf.SeedsNum() * (conf.Steps + 1));
+	std::vector<float4> ParticleVelocities(conf.SeedsNum() * (conf.Steps + 1));
 	std::vector<uint32_t> ParticleTraceLength(conf.SeedsNum());
 
-	cudaSafeCall(cudaMemcpy(ParticlePositions.data(), d_OutPosBuffer, ParticlePositions.size() * sizeof(float3), cudaMemcpyDeviceToHost));
-	cudaSafeCall(cudaMemcpy(ParticleVelocities.data(), d_OutVeloBuffer, ParticleVelocities.size() * sizeof(float3), cudaMemcpyDeviceToHost));
+	cudaSafeCall(cudaMemcpy(ParticlePositions.data(), d_OutPosBuffer, ParticlePositions.size() * sizeof(float4), cudaMemcpyDeviceToHost));
+	cudaSafeCall(cudaMemcpy(ParticleVelocities.data(), d_OutVeloBuffer, ParticleVelocities.size() * sizeof(float4), cudaMemcpyDeviceToHost));
 	cudaSafeCall(cudaMemcpy(ParticleTraceLength.data(), d_TraceLengthBuffer, ParticleTraceLength.size() * sizeof(uint32_t), cudaMemcpyDeviceToHost));
 	cudaSafeCall(cudaDeviceSynchronize());
 
 	// Read
-	float3 ParticleSum = make_float3(0.0f);
+	float4 ParticleSum = make_float4(0.0f);
 	for (auto i = 0; i < ParticleTraceLength[0]; i++)
 	{
 		ParticleSum += ParticlePositions[i];
@@ -673,7 +677,6 @@ void TestParticleKernel()
 	integrationConf.Seeds = uint3{ 10, 12, 12 };
 	integrationConf.CalculateStride(Dimensions);
 	integrationConf.Steps = 1000;
-	integrationConf.CellFactor = make_float3(1.0f);
 	integrationConf.dt = 0.01f;
 
 	Vectorfield<float> vF_4CInterleaved{};
@@ -733,7 +736,7 @@ void TestParticleKernel()
 }
 
 template <typename T>
-void compressWithCudaCompress(const Vectorfield<T>& src_vf, CompVectorfield& dst_vf, bool copyDevice = false)
+double compressWithCudaCompress(const Vectorfield<T>& src_vf, CompVectorfield& dst_vf, bool copyDevice = false)
 {
 	if (copyDevice)
 	    dst_vf.dData.resize(src_vf.Dimensions.w);
@@ -752,6 +755,11 @@ void compressWithCudaCompress(const Vectorfield<T>& src_vf, CompVectorfield& dst
 	CompressVolumeResources CompVolumeResources;
 	CompVolumeResources.create(GPUResources.getConfig());
 
+	cudaEvent_t start, stop;
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
+	double gpu_time = 0.0;
+
 	// Copy data to host
 	for (auto t = 0; t < src_vf.Dimensions.w; t++)
 	{
@@ -766,6 +774,7 @@ void compressWithCudaCompress(const Vectorfield<T>& src_vf, CompVectorfield& dst
 	    dst_vf.hData[t].resize(src_vf.ChannelCount); // Bitstream buffers per channel
 	    //std::vector<std::vector<uint>> bitStreams(vf.ChannelCount);	// Bitstream buffers per channel
 	    // Compress!
+		cudaEventRecord(start);
 	    for (uint i = 0; i < dst_vf.compressIterations; i++)
 	    {
 		    for (size_t c = 0; c < src_vf.ChannelCount; c++)
@@ -773,26 +782,13 @@ void compressWithCudaCompress(const Vectorfield<T>& src_vf, CompVectorfield& dst
 			    compressVolumeFloat(GPUResources, CompVolumeResources, dp_Buffer_Images[c], src_vf.Dimensions.x, src_vf.Dimensions.y, src_vf.Dimensions.z, dst_vf.numDecompositionLevels, dst_vf.hData[t][c], dst_vf.quantizationStepSize, dst_vf.b_RLEOnlyOnLvl0);
 		    }
 	    }
+		cudaEventRecord(stop);
 
 		cudaSafeCall(cudaDeviceSynchronize());
-
-		if (copyDevice)
-		{
-		    dst_vf.dData[t].resize(src_vf.ChannelCount);
-		    for (size_t c = 0; c < src_vf.ChannelCount; c++)
-		    {
-			    // If a gpu buffer already exists, destroy
-			    if (dst_vf.dData[t][c])
-			    {
-				    cudaSafeCall(cudaFree(dp_Buffer_Images[c]));
-			    }
-
-			    // create gpu buffer and copy content
-			    auto BytesCompressed = uint(dst_vf.hData[t][c].size()) * sizeof(uint);
-		        CreateDevicePointer(&dst_vf.dData[t][c], BytesCompressed);
-			    cudaSafeCall(cudaMemcpy(dst_vf.dData[t][c], dst_vf.hData[t][c].data(), BytesCompressed, cudaMemcpyHostToDevice));
-		    }
-		}
+		cudaEventSynchronize(stop);
+		float milliseconds = 0;
+		cudaEventElapsedTime(&milliseconds, start, stop);
+		gpu_time += milliseconds;
 	}
 
 	CompVolumeResources.destroy();
@@ -806,10 +802,107 @@ void compressWithCudaCompress(const Vectorfield<T>& src_vf, CompVectorfield& dst
 	dst_vf.Dimensions = src_vf.Dimensions;
 	dst_vf.ChannelCount = src_vf.ChannelCount;
 	dst_vf.InterleavedXYZ = src_vf.InterleavedXYZ;
+
+	return gpu_time;
+}
+
+
+template <typename T>
+double compressWithCudaCompress(const char* filepath, CompVectorfield& dst_vf)
+{
+	int4 Dimensions{0,0,0,0};
+
+	// Open Dataset and read filesize and dimensions
+	std::fstream file;
+	file.open(filepath, std::ios::in | std::ios::binary | std::ios::ate);
+	if (!file.good())
+	{
+		return -1.0;
+	}
+	auto filesize = file.tellg();
+	file.seekg(0, std::ios::beg);
+	file.read(reinterpret_cast<char*>(&Dimensions), sizeof(Dimensions));
+
+	Vectorfield<float> src_vf;
+	src_vf.ChannelCount = 3;
+	src_vf.Dimensions = make_uint4(Dimensions);
+	src_vf.InterleavedXYZ = false;
+	src_vf.Data.resize(src_vf.NumScalars(3));
+
+	// Allocate GPU arrays to upload uncompressed data
+	std::vector<float*> dp_Buffer_Images(src_vf.ChannelCount);
+	for (size_t c = 0; c < src_vf.ChannelCount; c++)
+	{
+		CreateDevicePointer(&dp_Buffer_Images[c], src_vf.NumVectors(3) * sizeof(float));
+	}
+
+	// Instantiate helper classes for managing shared GPU resources, maybe overkill
+	GPUResources::Config GPUResourcesConfig = CompressVolumeResources::getRequiredResources(src_vf.Dimensions.x, src_vf.Dimensions.y, src_vf.Dimensions.z, (uint)src_vf.ChannelCount, dst_vf.huffmanBits);
+	GPUResources GPUResources;
+	GPUResources.create(GPUResourcesConfig);
+	CompressVolumeResources CompVolumeResources;
+	CompVolumeResources.create(GPUResources.getConfig());
+
+	cudaEvent_t start, stop;
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
+	double gpu_time = 0.0;
+
+	auto BytesChannel = src_vf.NumVectors(3) * sizeof(float);	// Bytes of a single channel
+	for (auto t = 0; t < src_vf.Dimensions.w; t++)
+	{
+		for (size_t c = 0; c < src_vf.ChannelCount; c++)
+		{
+			const auto fileTimeOffset = t * src_vf.NumVectors(3) * sizeof(float);
+			const auto fileChannelOffset = c * src_vf.NumVectors(4) * sizeof(float);
+
+			file.seekg(sizeof(Dimensions) + fileTimeOffset + fileChannelOffset, std::ios::beg);
+			file.read(reinterpret_cast<char*>(&src_vf.Data[c * src_vf.NumVectors(3)]), BytesChannel);
+
+			cudaEventRecord(start);
+			cudaSafeCall(cudaMemset(dp_Buffer_Images[c], 0, src_vf.NumVectors(3) * sizeof(float)));
+			const auto channelOffset = c * src_vf.NumVectors(3);
+			cudaSafeCall(cudaMemcpy(dp_Buffer_Images[c], src_vf.Data.data() + channelOffset, src_vf.NumVectors(3) * sizeof(float), cudaMemcpyHostToDevice));
+			cudaEventCreate(&stop);
+		}
+
+		dst_vf.hData[t].resize(src_vf.ChannelCount); // Bitstream buffers per channel
+
+		// Compress!
+		cudaEventRecord(start);
+		for (uint i = 0; i < dst_vf.compressIterations; i++)
+		{
+			for (size_t c = 0; c < src_vf.ChannelCount; c++)
+			{
+				compressVolumeFloat(GPUResources, CompVolumeResources, dp_Buffer_Images[c], src_vf.Dimensions.x, src_vf.Dimensions.y, src_vf.Dimensions.z, dst_vf.numDecompositionLevels, dst_vf.hData[t][c], dst_vf.quantizationStepSize, dst_vf.b_RLEOnlyOnLvl0);
+			}
+		}
+		cudaEventRecord(stop);
+
+		cudaSafeCall(cudaDeviceSynchronize());
+		cudaEventSynchronize(stop);
+		float milliseconds = 0;
+		cudaEventElapsedTime(&milliseconds, start, stop);
+		gpu_time += milliseconds;
+	}
+
+	CompVolumeResources.destroy();
+	GPUResources.destroy();
+
+	for (size_t c = 0; c < src_vf.ChannelCount; c++)
+	{
+		cudaSafeCall(cudaFree(dp_Buffer_Images[c]));
+	}
+
+	dst_vf.Dimensions = src_vf.Dimensions;
+	dst_vf.ChannelCount = src_vf.ChannelCount;
+	dst_vf.InterleavedXYZ = src_vf.InterleavedXYZ;
+
+	return gpu_time;
 }
 
 template <typename T>
-void decompressWithCudaCompress(CompVectorfield& src_vf, Vectorfield<T>& dst_vf)
+double decompressWithCudaCompress(CompVectorfield& src_vf, Vectorfield<T>& dst_vf)
 {
 	// If dst vectorfield is pointer type, this means it holds device buffer
 	//bool bDevice = std::is_pointer<T>::value;
@@ -827,6 +920,11 @@ void decompressWithCudaCompress(CompVectorfield& src_vf, Vectorfield<T>& dst_vf)
 	GPUResources.create(GPUResourcesConfig);
 	CompressVolumeResources CompVolumeResources;
 	CompVolumeResources.create(GPUResources.getConfig());
+
+	cudaEvent_t start, stop;
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
+	double gpu_time = 0.0;
 
     for (auto t = 0; t < src_vf.Dimensions.w; t++)
     {
@@ -853,11 +951,21 @@ void decompressWithCudaCompress(CompVectorfield& src_vf, Vectorfield<T>& dst_vf)
 		    channels[c].quantizationStepLevel0 = src_vf.quantizationStepSize;
 	    }
 
+
 	    // Decompress!
+		cudaEventRecord(start);
 	    for (uint i = 0; i < src_vf.compressIterations; i++)
 	    {
 		    decompressVolumeFloatMultiChannel(GPUResources, CompVolumeResources, channels.data(), (uint)channels.size(), src_vf.Dimensions.x, src_vf.Dimensions.y, src_vf.Dimensions.z, src_vf.numDecompositionLevels, src_vf.b_RLEOnlyOnLvl0);
 	    }
+		cudaEventRecord(stop);
+
+		cudaSafeCall(cudaDeviceSynchronize());
+		cudaEventSynchronize(stop);
+		float milliseconds = 0;
+		cudaEventElapsedTime(&milliseconds, start, stop);
+		gpu_time += milliseconds;
+
 
 	    // Unregister bitstream to make it pageable again
 	    for (size_t c = 0; c < src_vf.ChannelCount; c++) {
@@ -890,6 +998,8 @@ void decompressWithCudaCompress(CompVectorfield& src_vf, Vectorfield<T>& dst_vf)
 	dst_vf.Dimensions = src_vf.Dimensions;
 	dst_vf.ChannelCount = src_vf.ChannelCount;
 	dst_vf.InterleavedXYZ = src_vf.InterleavedXYZ;
+
+	return gpu_time;
 }
 
 void TestCudaCompressKernel()
@@ -943,7 +1053,6 @@ void TestCompressedParticleKernel()
 	integrationConf.Seeds = uint3{ 10, 12, 12 };
 	integrationConf.CalculateStride(Dimensions);
 	integrationConf.Steps = 1000;
-	integrationConf.CellFactor = make_float3(1.0f);
 	integrationConf.dt = 0.01f;
 
 	Vectorfield<float> vf{};
@@ -997,4 +1106,217 @@ void TestCompressedParticleKernel()
 	avg_error(vf.Data.data(), r_vf.Data.data(), vf.NumVectors(4), (vf.InterleavedXYZ ? 1 : vf.NumVectors(3)));
 }
 
+void TraceABC()
+{
+	PrintDeviceInformation();
+	uint4 Dimensions{ 225 , 250, 200, 151 };
 
+	Vectorfield<float> vf{};
+	vf.Dimensions = Dimensions;
+	vf.ChannelCount = 3;
+	vf.InterleavedXYZ = false;
+	vf.Data = { GenerateABCDataset<float>(vf.Dimensions, vf.ChannelCount, vf.InterleavedXYZ) };
+
+	CompVectorfield vf_comp{};
+	vf_comp.hData.resize(vf.Dimensions.w);
+	vf_comp.numDecompositionLevels = 2;		// Too many decompositions may introduce artifacts
+	vf_comp.quantizationStepSize = 0.00136f;	// Granularity of data precision reduction (impacts compression efficiency) def: 0.00136f
+	vf_comp.compressIterations = 10;			// May improve... something
+	vf_comp.huffmanBits = 0;
+	vf_comp.b_RLEOnlyOnLvl0 = true;
+
+	printf("Launching Tests\n");
+	printf("Decomposition Levels:   %i\n", vf_comp.numDecompositionLevels);
+	printf("Quantization Step Size: %.6f\n", vf_comp.quantizationStepSize);
+	printf("Compression Iterations: %u\n", vf_comp.compressIterations);
+	printf("Huffman Bits:           %u\n", vf_comp.huffmanBits);
+	printf("-----------------------------------------\n");
+	printf("Data Dimensions:       (%i, %i, %i, %i)\n", Dimensions.x, Dimensions.y, Dimensions.z, Dimensions.w);
+	printf("Data Size:             %.2f MB\n", vf.NumScalars() * sizeof(float) / 1000000.0);
+
+	// Compression
+	auto t0 = std::chrono::high_resolution_clock::now();
+	auto tgpu_compression = compressWithCudaCompress<float>(vf, vf_comp);
+	auto t1 = std::chrono::high_resolution_clock::now();
+	auto tcpu_compression = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+
+	// Wait for completion
+	cudaDeviceSynchronize();
+
+	// Decompression
+	t0 = std::chrono::high_resolution_clock::now();
+	auto tgpu_decompression = decompressWithCudaCompress(vf_comp, vf);
+	t1 = std::chrono::high_resolution_clock::now();
+	auto tcpu_decompression = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+
+	CompressionEfficiency(vf_comp.hData, vf.NumVectors(4), vf.ChannelCount);
+	printf("\n");
+
+	/*
+	// Integration
+	IntegrationConfig integrationConf{};
+	integrationConf.Seeds = uint3{ 25, 25, 15 };
+	integrationConf.CalculateStride(Dimensions);
+	integrationConf.Steps = 15100;
+	integrationConf.dt = 0.01f;
+
+	dim3 threadsPerBlock(2, 2, 2);
+	dim3 numBlocks((integrationConf.Seeds.x + threadsPerBlock.x - 1) / threadsPerBlock.x,
+		(integrationConf.Seeds.y + threadsPerBlock.y - 1) / threadsPerBlock.y,
+		(integrationConf.Seeds.z + threadsPerBlock.z - 1) / threadsPerBlock.z);
+
+	printf("Launching Particle Tracer\n");
+	printf("Data Dimensinos:    (%i, %i, %i, %i)\n", Dimensions.x, Dimensions.y, Dimensions.z, Dimensions.w);
+	printf("Seeds:              (%i, %i, %i)\n", integrationConf.Seeds.x, integrationConf.Seeds.y, integrationConf.Seeds.z);
+	printf("Steps:              %u\n", integrationConf.Steps);
+	printf("Stepsize:           %.4f\n", integrationConf.dt);
+	printf("Threads per Block:  (%i, %i, %i)\n", threadsPerBlock.x, threadsPerBlock.y, threadsPerBlock.z);
+	printf("Number of Blocks:   (%i, %i, %i)\n", numBlocks.x, numBlocks.y, numBlocks.z);
+	printf("...\n");
+
+	t0 = std::chrono::high_resolution_clock::now();
+	auto tgpu_traces = Launch3Texture1CIntegrationTest(vf, integrationConf, numBlocks, threadsPerBlock);
+	t1 = std::chrono::high_resolution_clock::now();
+	auto tcpu_trace = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+
+	double tgpu_trace = 0.0;
+	for (const auto t : tgpu_traces)
+	{
+		tgpu_trace += t;
+	}
+	tgpu_trace /= tgpu_traces.size();
+	*/
+	printf("Time GPU Compression:      %.4fms\n", tgpu_compression);
+	printf("Time GPU Decompression:    %.4fms\n", tgpu_decompression);
+	//printf("Time GPU Particle Tracing: %.4fms\n", tgpu_trace);
+	printf("Time CPU Compression:      %ums\n", tcpu_compression);
+	printf("Time CPU Decompression:    %ums\n", tcpu_decompression);
+	//printf("Time CPU Particle Tracing: %ums\n", tcpu_trace / tgpu_traces.size());
+
+	/*
+
+	compressWithCudaCompress(vf_src, vf_comp);
+
+	// Wait for completion
+	cudaDeviceSynchronize();
+
+	Vectorfield<float> vf_rec{};
+	decompressWithCudaCompress(vf_comp, vf_rec);
+
+
+
+	printf("Results:\n");
+	CompressionEfficiency(vf_comp.hData, vf_src.NumVectors(4), vf_src.ChannelCount);
+	avg_error(vf_src.Data.data(), vf_rec.Data.data(), vf_src.NumVectors(4), (vf_src.InterleavedXYZ ? 1 : vf_src.NumVectors(3)));
+	*/
+}
+
+
+void TraceFile(const char* filepath, bool read_slicewise)
+{
+	PrintDeviceInformation();
+
+	// Read dimensions of processed dataset
+	uint4 Dimensions{ 0, 0, 0, 0 };
+	std::fstream file;
+	file.open(filepath, std::ios::in | std::ios::binary | std::ios::ate);
+	if (!file.good())
+	{
+		return;
+	}
+	std::streamsize filesize = file.tellg();
+	file.seekg(0, std::ios::beg);
+	file.read(reinterpret_cast<char*>(&Dimensions), sizeof(Dimensions));
+
+	Vectorfield<float> vf_src{};
+	vf_src.Dimensions = Dimensions;
+	vf_src.ChannelCount = 3;
+	vf_src.InterleavedXYZ = false;
+
+	// Debug: Read the dataset into CPU memory
+    //vf_src.Data.resize(vf_src.NumScalars());
+	//file.read(reinterpret_cast<char*>(vf_src.Data.data()), filesize - sizeof(Dimensions));
+
+	CompVectorfield vf_comp{};
+	vf_comp.hData.resize(vf_src.Dimensions.w);
+	vf_comp.numDecompositionLevels = 2;		// Too many decompositions may introduce artifacts
+	vf_comp.quantizationStepSize = 0.00136f;	// Granularity of data precision reduction (impacts compression efficiency) def: 0.00136f
+	vf_comp.compressIterations = 10;			// May improve... something
+	vf_comp.huffmanBits = 0;
+	vf_comp.b_RLEOnlyOnLvl0 = true;
+
+	printf("Launching Compression\n");
+	printf("Decomposition Levels:   %i\n", vf_comp.numDecompositionLevels);
+	printf("Quantization Step Size: %.6f\n", vf_comp.quantizationStepSize);
+	printf("Compression Iterations: %u\n", vf_comp.compressIterations);
+	printf("Huffman Bits:           %u\n", vf_comp.huffmanBits);
+	printf("-----------------------------------------\n");
+	printf("Data Dimensions:       (%i, %i, %i, %i)\n", Dimensions.x, Dimensions.y, Dimensions.z, Dimensions.w);
+	printf("Data Size:             %.2f MB\n", vf_src.NumScalars() * sizeof(float) / 1000000.0);
+	printf("...\n");
+
+	// Compression
+	auto t0 = std::chrono::high_resolution_clock::now();
+	auto tgpu_compression = compressWithCudaCompress<float>(filepath, vf_comp);
+	auto t1 = std::chrono::high_resolution_clock::now();
+	auto tcpu_compression = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+
+	// Wait for completion
+	cudaDeviceSynchronize();
+
+	// Decompression
+	Vectorfield<float> vf_rec{};
+	t0 = std::chrono::high_resolution_clock::now();
+	auto tgpu_decompression = decompressWithCudaCompress(vf_comp, vf_rec);
+	t1 = std::chrono::high_resolution_clock::now();
+	auto tcpu_decompression = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+
+	CompressionEfficiency(vf_comp.hData, vf_src.NumVectors(4), vf_src.ChannelCount);
+	printf("\n");
+
+	/*
+	// Integration
+	IntegrationConfig integrationConf{};
+	integrationConf.Seeds = uint3{ 25, 25, 12 };
+	integrationConf.CalculateStride(Dimensions);
+	integrationConf.Steps = 20100;
+	integrationConf.dt = 0.01f;
+
+	dim3 threadsPerBlock(2, 2, 2);
+	dim3 numBlocks((integrationConf.Seeds.x + threadsPerBlock.x - 1) / threadsPerBlock.x,
+		(integrationConf.Seeds.y + threadsPerBlock.y - 1) / threadsPerBlock.y,
+		(integrationConf.Seeds.z + threadsPerBlock.z - 1) / threadsPerBlock.z);
+
+	printf("Launching Particle Tracer\n");
+	printf("Data Dimensinos:    (%i, %i, %i, %i)\n", Dimensions.x, Dimensions.y, Dimensions.z, Dimensions.w);
+	printf("Seeds:              (%i, %i, %i)\n", integrationConf.Seeds.x, integrationConf.Seeds.y, integrationConf.Seeds.z);
+	printf("Steps:              %u\n", integrationConf.Steps);
+	printf("Stepsize:           %.4f\n", integrationConf.dt);
+	printf("Threads per Block:  (%i, %i, %i)\n", threadsPerBlock.x, threadsPerBlock.y, threadsPerBlock.z);
+	printf("Number of Blocks:   (%i, %i, %i)\n", numBlocks.x, numBlocks.y, numBlocks.z);
+	printf("...\n");
+
+	t0 = std::chrono::high_resolution_clock::now();
+    auto tgpu_traces = Launch3Texture1CIntegrationTest(vf_rec, integrationConf, numBlocks, threadsPerBlock);
+	t1 = std::chrono::high_resolution_clock::now();
+	auto tcpu_trace = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+
+	double tgpu_trace = 0.0;
+	for (const auto t : tgpu_traces)
+	{
+		tgpu_trace += t;
+	}
+	tgpu_trace /= tgpu_traces.size();
+	*/
+
+	printf("Time GPU Compression:      %.4fms\n", tgpu_compression);
+	printf("Time GPU Decompression:    %.4fms\n", tgpu_decompression);
+	//printf("Time GPU Particle Tracing: %.4fms\n", tgpu_trace);
+	printf("Time CPU Compression:      %ums\n", tcpu_compression);
+	printf("Time CPU Decompression:    %ums\n", tcpu_decompression);
+	//printf("Time CPU Particle Tracing: %ums\n", tcpu_trace / tgpu_traces.size());
+
+	// Debug
+	//printf("Results:\n");
+	//avg_error(vf_src.Data.data(), vf_rec.Data.data(), vf_src.NumVectors(4), (vf_src.InterleavedXYZ ? 1 : vf_src.NumVectors(3)));
+}
