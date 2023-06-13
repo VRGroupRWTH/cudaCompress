@@ -8,10 +8,11 @@ PROJECT(cudaCompress VERSION 1.0 LANGUAGES CXX CUDA)
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(FastMath)
 include(MaxErrorWarning)
+include(CPM)
 
 ## Enforce C++11
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CUDA_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CUDA_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 ## Use certain optimization level
 #set(CMAKE_CXX_FLAGS_DEBUG -g)

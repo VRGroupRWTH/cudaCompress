@@ -83,14 +83,14 @@ template <typename T>
 void GenerateABCDataset(T* dst, size_t DimX, size_t DimY, size_t DimZ, size_t DimT, int channels, bool interleaved)
 {
 	// ROI selection
-	size_t DimX0 = -100;
-	size_t DimX1 = DimX0 + DimX;
-	size_t DimY0 = 0;
-	size_t DimY1 = DimY0 + DimY;
-	size_t DimZ0 = -100;
-	size_t DimZ1 = DimZ0 + DimZ;
-	size_t DimT0 = 0;
-	size_t DimT1 = DimT0 + DimT;
+	long int DimX0 = -100;
+	long int DimX1 = DimX0 + DimX;
+	long int DimY0 = 0;
+	long int DimY1 = DimY0 + DimY;
+	long int DimZ0 = -100;
+	long int DimZ1 = DimZ0 + DimZ;
+	long int DimT0 = 0;
+	long int DimT1 = DimT0 + DimT;
 
 	// Initializing good ABC parameters which distributes the flow field dynamics over a larger field
 	const float A_PARAM = std::sqrt(3);
@@ -109,7 +109,7 @@ void GenerateABCDataset(T* dst, size_t DimX, size_t DimY, size_t DimZ, size_t Di
 			for (auto y = DimY0; y < DimY1; y++) {
 				for (auto x = DimX0; x < DimX1; x++) {
 					// (discrete) position in the dataset
-					const float3 pos{ x, y, z };
+					const float3 pos{ (float)x, (float)y, (float)z };
 					// velocity at this position
 					const float3 velo{
 						a_coeff * std::sin(pos.z * c_pos) + B_PARAM * std::cos(pos.y * c_pos),

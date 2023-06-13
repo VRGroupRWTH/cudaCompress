@@ -18,3 +18,5 @@ double Launch3BufferIntegrationTest();
 
 void TraceABC();
 void TraceFile(const char* filepath, bool read_slicewise = false);
+
+void CompressFile(const char* filepath, bool read_slicewise = true, bool save_decomp = true, int numDecompLvls = 2, float quantSize = 0.00136, int compIters = 10, int huffBits = 0);

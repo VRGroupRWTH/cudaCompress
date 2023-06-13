@@ -8,6 +8,7 @@ SET (this_target ${PROJECT_NAME})
 
 # Dependencies
 # ============
+CPMAddPackage("gh:gabime/spdlog#v1.11.0")
 find_package(CUDAToolkit REQUIRED)
 find_package(OpenMP REQUIRED)
 
@@ -31,17 +32,16 @@ SET(${PROJECT_NAME}_HEADER_FILES
 	GPUResources.h
 	helper_math.h
 	ParticleHelpers.h
+	half.h
 )
 
 SET(${PROJECT_NAME}_CU_FILES
-	ParticleTracer.cu
-	cudaTests.cu
+	cudaFuncs.cu
 	cudaHelpers.cu
 )
 
 SET(${PROJECT_NAME}_CUH_FILES
-	ParticleTracer.cuh
-	cudaTests.cuh
+	cudaFuncs.cuh
 	cudaHelpers.cuh
 )
 
@@ -70,7 +70,7 @@ set(PARTICLETRACER_INCLUDE_DIRS
 
 ## section: set link libraries
 target_link_libraries(${PROJECT_NAME}
-	PRIVATE CUDA::cudart_static cudaCompress OpenMP::OpenMP_CXX
+	PRIVATE CUDA::cudart_static cudaCompress OpenMP::OpenMP_CXX spdlog::spdlog
 )
 
 ## section: include directory
