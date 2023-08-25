@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.18)
 
 # Project Configuration
 # =====================
-PROJECT(ParticleTracer VERSION 1.0 LANGUAGES CXX CUDA)
+PROJECT(cudaVectorCompress VERSION 1.0 LANGUAGES CXX CUDA)
 
 SET (this_target ${PROJECT_NAME})
 
@@ -63,7 +63,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
 set_target_properties(${PROJECT_NAME} 
              PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
-set(PARTICLETRACER_INCLUDE_DIRS
+set(CUDAVECTORCOMPRESS_INCLUDE_DIRS
   ${PROJECT_SOURCE_DIR}/../../include
   ${PROJECT_SOURCE_DIR}/../../src
 )
@@ -74,7 +74,7 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 ## section: include directory
-target_include_directories(${PROJECT_NAME} PRIVATE ${PARTICLETRACER_INCLUDE_DIRS} ${CUDA_TOOLKIT_INCLUDE})
+target_include_directories(${PROJECT_NAME} PRIVATE ${CUDAVECTORCOMPRESS_INCLUDE_DIRS} ${CUDA_TOOLKIT_INCLUDE})
 
 
 ## section: add definitions

@@ -119,7 +119,8 @@ bool SaveCompressedVectorfield(const CompVectorfield& vf, const char* filepath)
 
 	
 	std::fstream file_comp;
-	const std::string save_path = fmt::format("{}_cudaComp_compressed_{}_{}_{}_{}.raw",
+	const std::string save_path = fmt::format("{}/{}_cudaComp_compressed_{}_{}_{}_{}.cudaComp",
+		std::filesystem::path(filepath).parent_path().has_parent_path() ? std::filesystem::path(filepath).parent_path().string() : ".",
 		absolute_dataset_path.filename().replace_extension("").string(),
 		vf.numDecompositionLevels,
 		vf.quantizationStepSize,
@@ -138,16 +139,16 @@ bool SaveCompressedVectorfield(const CompVectorfield& vf, const char* filepath)
 	printf("Saving compressed data...\n");
 	for (uint w = 0; w < vf.Dimensions.w; w++)
 	{
-		printf("t=%u...\n", w);
 		for (uint c = 0; c < vf.ChannelCount; c++)
 		{
-			printf("c=%u...\n", c);
 			size_t compressedBytes = vf.hData[w][c].size() * sizeof(uint);
 			file_comp.write(reinterpret_cast<const char*>(&compressedBytes), sizeof(size_t));
 			file_comp.write(reinterpret_cast<const char*>(vf.hData[w][c].data()), compressedBytes);
 		}
 	}
 	file_comp.close();
+
+	return 0;
 }
 
 
@@ -867,9 +868,22 @@ double compressWithCudaCompress(const Vectorfield<T>& src_vf, CompVectorfield& d
 
 
 template <typename T>
-double compressWithCudaCompress(const char* filepath, CompVectorfield& dst_vf)
+double compressWithCudaCompress(const char* filepath, CompVectorfield& dst_vf, bool interleaved)
 {
-	int4 Dimensions{0,0,0,0};
+	std::string dims_path = std::filesystem::path(filepath).replace_extension("").string() + "_dims.raw";
+	uint4 Dimensions{ 0,0,0,0 };
+
+	if (exists(std::filesystem::path(dims_path)))
+	{
+		std::fstream file;
+		file.open(dims_path, std::ios::in | std::ios::binary);
+		if (!file.good())
+		{
+			return -1;
+		}
+		file.read((char*)&Dimensions.x, sizeof(Dimensions));
+		file.close();
+	}
 
 	// Open Dataset and read filesize and dimensions
 	std::fstream file;
@@ -880,11 +894,14 @@ double compressWithCudaCompress(const char* filepath, CompVectorfield& dst_vf)
 	}
 	auto filesize = file.tellg();
 	file.seekg(0, std::ios::beg);
-	file.read(reinterpret_cast<char*>(&Dimensions), sizeof(Dimensions));
+
+	bool seperate_dims = exists(std::filesystem::path(dims_path));
+	if (!seperate_dims)
+		file.read(reinterpret_cast<char*>(&Dimensions), sizeof(Dimensions));
 
 	Vectorfield<float> src_vf;
 	src_vf.ChannelCount = 3;
-	src_vf.Dimensions = make_uint4(Dimensions);
+	src_vf.Dimensions = Dimensions;
 	src_vf.InterleavedXYZ = false;
 	src_vf.Data.resize(src_vf.NumScalars(3));
 
@@ -912,24 +929,57 @@ double compressWithCudaCompress(const char* filepath, CompVectorfield& dst_vf)
 	{
 		float milliseconds = 0;
 
-		for (size_t c = 0; c < src_vf.ChannelCount; c++)
+		if (interleaved)
 		{
-			const auto fileTimeOffset = t * src_vf.NumVectors(3) * sizeof(float);
-			const auto fileChannelOffset = c * src_vf.NumVectors(4) * sizeof(float);
+			std::vector<T> tmp(src_vf.NumScalars(3));
 
-			file.seekg(sizeof(Dimensions) + fileTimeOffset + fileChannelOffset, std::ios::beg);
-			file.read(reinterpret_cast<char*>(&src_vf.Data[c * src_vf.NumVectors(3)]), BytesChannel);
+			const auto fileTimeOffset = t * src_vf.NumScalars(3) * sizeof(float);
 
-			// Measure aux Buffers: necessary for cudaCompress
-			cudaEventRecord(start);
-			cudaSafeCall(cudaMemset(dp_Buffer_Images[c], 0, src_vf.NumVectors(3) * sizeof(float)));
-			const auto channelOffset = c * src_vf.NumVectors(3);
-			cudaSafeCall(cudaMemcpy(dp_Buffer_Images[c], src_vf.Data.data() + channelOffset, src_vf.NumVectors(3) * sizeof(float), cudaMemcpyHostToDevice));
-			cudaEventRecord(stop);
+			file.seekg(sizeof(Dimensions) * !seperate_dims + fileTimeOffset, std::ios::beg);
+			file.read(reinterpret_cast<char*>(tmp.data()), src_vf.NumScalars(3) * sizeof(float));
 
-			cudaEventSynchronize(stop);
-			cudaEventElapsedTime(&milliseconds, start, stop);
-			gpu_time += milliseconds;
+			for (auto i = 0; i < tmp.size() / src_vf.ChannelCount; i++)
+			{
+				for (auto c = 0; c < src_vf.ChannelCount; c++)
+				{
+					src_vf.Data[c * src_vf.NumVectors(3) + i] = tmp[c + i * src_vf.ChannelCount];
+				}
+			}
+
+			for (auto c = 0; c < src_vf.ChannelCount; c++)
+			{
+				// Measure aux Buffers: necessary for cudaCompress
+				cudaEventRecord(start);
+				cudaSafeCall(cudaMemset(dp_Buffer_Images[c], 0, src_vf.NumVectors(3) * sizeof(float)));
+				const auto channelOffset = c * src_vf.NumVectors(3);
+				cudaSafeCall(cudaMemcpy(dp_Buffer_Images[c], src_vf.Data.data() + channelOffset, src_vf.NumVectors(3) * sizeof(float), cudaMemcpyHostToDevice));
+				cudaEventRecord(stop);
+
+				cudaEventSynchronize(stop);
+				cudaEventElapsedTime(&milliseconds, start, stop);
+				gpu_time += milliseconds;
+			}
+		}
+		else {
+			for (size_t c = 0; c < src_vf.ChannelCount; c++)
+			{
+				const auto fileTimeOffset = t * src_vf.NumVectors(3) * sizeof(float);
+				const auto fileChannelOffset = c * src_vf.NumVectors(4) * sizeof(float);
+
+				file.seekg(sizeof(Dimensions) * !seperate_dims + fileTimeOffset + fileChannelOffset, std::ios::beg);
+				file.read(reinterpret_cast<char*>(&src_vf.Data[c * src_vf.NumVectors(3)]), BytesChannel);
+
+				// Measure aux Buffers: necessary for cudaCompress
+				cudaEventRecord(start);
+				cudaSafeCall(cudaMemset(dp_Buffer_Images[c], 0, src_vf.NumVectors(3) * sizeof(float)));
+				const auto channelOffset = c * src_vf.NumVectors(3);
+				cudaSafeCall(cudaMemcpy(dp_Buffer_Images[c], src_vf.Data.data() + channelOffset, src_vf.NumVectors(3) * sizeof(float), cudaMemcpyHostToDevice));
+				cudaEventRecord(stop);
+
+				cudaEventSynchronize(stop);
+				cudaEventElapsedTime(&milliseconds, start, stop);
+				gpu_time += milliseconds;
+			}
 		}
 
 		dst_vf.hData[t].resize(src_vf.ChannelCount); // Bitstream buffers per channel
@@ -1226,64 +1276,11 @@ void TraceABC()
 
 	CompressionEfficiency(vf_comp.hData, vf.NumVectors(4), vf.ChannelCount);
 	printf("\n");
-
-	/*
-	// Integration
-	IntegrationConfig integrationConf{};
-	integrationConf.Seeds = uint3{ 25, 25, 15 };
-	integrationConf.CalculateStride(Dimensions);
-	integrationConf.Steps = 15100;
-	integrationConf.dt = 0.01f;
-
-	dim3 threadsPerBlock(2, 2, 2);
-	dim3 numBlocks((integrationConf.Seeds.x + threadsPerBlock.x - 1) / threadsPerBlock.x,
-		(integrationConf.Seeds.y + threadsPerBlock.y - 1) / threadsPerBlock.y,
-		(integrationConf.Seeds.z + threadsPerBlock.z - 1) / threadsPerBlock.z);
-
-	printf("Launching Particle Tracer\n");
-	printf("Data Dimensinos:    (%i, %i, %i, %i)\n", Dimensions.x, Dimensions.y, Dimensions.z, Dimensions.w);
-	printf("Seeds:              (%i, %i, %i)\n", integrationConf.Seeds.x, integrationConf.Seeds.y, integrationConf.Seeds.z);
-	printf("Steps:              %u\n", integrationConf.Steps);
-	printf("Stepsize:           %.4f\n", integrationConf.dt);
-	printf("Threads per Block:  (%i, %i, %i)\n", threadsPerBlock.x, threadsPerBlock.y, threadsPerBlock.z);
-	printf("Number of Blocks:   (%i, %i, %i)\n", numBlocks.x, numBlocks.y, numBlocks.z);
-	printf("...\n");
-
-	t0 = std::chrono::high_resolution_clock::now();
-	auto tgpu_traces = Launch3Texture1CIntegrationTest(vf, integrationConf, numBlocks, threadsPerBlock);
-	t1 = std::chrono::high_resolution_clock::now();
-	auto tcpu_trace = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
-
-	double tgpu_trace = 0.0;
-	for (const auto t : tgpu_traces)
-	{
-		tgpu_trace += t;
-	}
-	tgpu_trace /= tgpu_traces.size();
-	*/
-	printf("Time GPU Compression:      %.4fms\n", tgpu_compression);
-	printf("Time GPU Decompression:    %.4fms\n", tgpu_decompression);
-	//printf("Time GPU Particle Tracing: %.4fms\n", tgpu_trace);
-	printf("Time CPU Compression:      %ums\n", tcpu_compression);
-	printf("Time CPU Decompression:    %ums\n", tcpu_decompression);
-	//printf("Time CPU Particle Tracing: %ums\n", tcpu_trace / tgpu_traces.size());
-
-	/*
-
-	compressWithCudaCompress(vf_src, vf_comp);
-
-	// Wait for completion
-	cudaDeviceSynchronize();
-
-	Vectorfield<float> vf_rec{};
-	decompressWithCudaCompress(vf_comp, vf_rec);
-
-
-
-	printf("Results:\n");
-	CompressionEfficiency(vf_comp.hData, vf_src.NumVectors(4), vf_src.ChannelCount);
-	avg_error(vf_src.Data.data(), vf.Data.data(), vf.NumVectors(), vf.ChannelCount, (vf.InterleavedXYZ ? 1 : vf.NumVectors(4)));
-	*/
+	
+	printf("Time (GPU) Compression:      %.4fms\n", tgpu_compression);
+	printf("Time (GPU) Decompression:    %.4fms\n", tgpu_decompression);
+	printf("Time (CPU) Compression:      %ums\n", tcpu_compression);
+	printf("Time (CPU) Decompression:    %ums\n", tcpu_decompression);
 }
 
 
@@ -1335,7 +1332,7 @@ void TraceFile(const char* filepath, bool read_slicewise)
 
 	// Compression
 	t0 = std::chrono::high_resolution_clock::now();
-	auto tgpu_compression = compressWithCudaCompress<float>(filepath, vf_comp);
+	auto tgpu_compression = compressWithCudaCompress<float>(filepath, vf_comp, false);
 	t1 = std::chrono::high_resolution_clock::now();
 	auto tcpu_compression = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 
@@ -1399,12 +1396,27 @@ void TraceFile(const char* filepath, bool read_slicewise)
 
 
 
-void CompressFile(const char* filepath, bool read_slicewise, bool save_decomp, int numDecompLvls, float quantSize, int compIters, int huffBits)
+void CompressFile(const char* filepath, bool save_decomp, bool interleaved_vectors, int numDecompLvls, float quantSize, int compIters, int huffBits)
 {
 	PrintDeviceInformation();
 
 	// Read dimensions of processed dataset
 	uint4 Dimensions{ 0, 0, 0, 0 };
+
+	// Check if dimensions are stored seperately
+	std::string dims_path = std::filesystem::path(filepath).replace_extension("").string() + "_dims.raw";
+	if (exists(std::filesystem::path(dims_path)))
+	{
+		std::fstream file;
+		file.open(dims_path, std::ios::in | std::ios::binary);
+		if (!file.good())
+		{
+			return;
+		}
+		file.read((char*)&Dimensions.x, sizeof(Dimensions));
+		file.close();
+	}
+
 	std::fstream file;
 	file.open(filepath, std::ios::in | std::ios::binary | std::ios::ate);
 	if (!file.good())
@@ -1413,11 +1425,12 @@ void CompressFile(const char* filepath, bool read_slicewise, bool save_decomp, i
 	}
 	std::streamsize filesize = file.tellg();
 	file.seekg(0, std::ios::beg);
-	file.read(reinterpret_cast<char*>(&Dimensions), sizeof(Dimensions));
+	if (!exists(std::filesystem::path(dims_path)))
+		file.read(reinterpret_cast<char*>(&Dimensions), sizeof(Dimensions));
 
 	Vectorfield<float> vf_src{};
 	vf_src.Dimensions = Dimensions;
-	vf_src.ChannelCount = 3;
+	vf_src.ChannelCount = filesize / ((uint64_t)Dimensions.x * (uint64_t)Dimensions.y * (uint64_t)Dimensions.z * (uint64_t)Dimensions.w * sizeof(float));
 	vf_src.InterleavedXYZ = false;
 
 	CompVectorfield vf_comp{};
@@ -1447,7 +1460,7 @@ void CompressFile(const char* filepath, bool read_slicewise, bool save_decomp, i
 
 	// Compression
 	t0 = std::chrono::high_resolution_clock::now();
-	auto tgpu_compression = compressWithCudaCompress<float>(filepath, vf_comp);
+	auto tgpu_compression = compressWithCudaCompress<float>(filepath, vf_comp, interleaved_vectors);
 	t1 = std::chrono::high_resolution_clock::now();
 	auto tcpu_compression = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 
@@ -1472,67 +1485,17 @@ void CompressFile(const char* filepath, bool read_slicewise, bool save_decomp, i
 	CompressionEfficiency(vf_comp.hData, vf_src.NumVectors(4), vf_src.ChannelCount);
 	printf("\n");
 
-	printf("Time GPU Compression:      %.4fms\n", tgpu_compression);
-	printf("Time GPU Decompression:    %.4fms\n", tgpu_decompression);
-	printf("Time CPU Compression:      %ums\n", tcpu_compression);
-	printf("Time CPU Decompression:    %ums\n", tcpu_decompression);
-
-	// Debug
-	printf("Results:\n");
-	auto err = avg_error(vf_src.Data.data(), vf_rec.Data.data(), vf_src.NumVectors(), vf_src.ChannelCount, (vf_src.InterleavedXYZ ? 1 : vf_src.NumVectors(4)));
+	printf("Time (GPU) Compression:      %.4fms\n", tgpu_compression);
+	printf("Time (GPU) Decompression:    %.4fms\n", tgpu_decompression);
+	printf("Time (CPU) Compression:      %ums\n", tcpu_compression);
+	printf("Time (CPU) Decompression:    %ums\n", tcpu_decompression);
 
 	const auto absolute_dataset_path = std::filesystem::absolute(filepath);
-	const auto dataset_filename = absolute_dataset_path.filename().string();
-	std::time_t t = std::time(0); // get time now
-	std::tm* now = std::localtime(&t);
-	std::array<std::string_view, 7> weekdays = {
-		"Sunday",
-		"Monday",
-		"Tuesday",
-		"Wednesday",
-		"Thursday",
-		"Friday",
-		"Saturday",
-	};
-
-
-	const std::string filename = fmt::format("{}-{}-{}-{}-{}-{}-{}-{}-{}-{}-{}-{}-cudaCompression.csv",
-		now->tm_year + 1900, now->tm_mon, now->tm_mday, weekdays[now->tm_wday], now->tm_hour, now->tm_min, now->tm_sec, dataset_filename,
-		vf_comp.numDecompositionLevels,
-		vf_comp.quantizationStepSize,
-		vf_comp.compressIterations,
-		vf_comp.huffmanBits
-	);
-
-	std::ofstream log_file = std::ofstream(filename);
-
-	fmt::print(log_file, "ms_fileread,ms_gpu_compression,ms_gpu_decompression,ms_cpu_compression,ms_cpu_decompression,avg_err_x,avg_err_y,avg_err_z,decomposition_levels,quantization_stepsize,compressionIterations,huffmanBits,dataset_path,dataset_dimensions\n");
-	fmt::print(
-		log_file, "{},{},{},{},{},{},{},{},{},{},{},{},{},{}x{}x{}x{}\n",
-		tcpu_fileread, // fileread
-		(size_t)tgpu_compression, // gpu comp 
-		(size_t)tgpu_decompression, // gpu decomp
-		tcpu_compression, // cpu comp
-		tcpu_decompression, // cpu decomp
-		err[0], // avg error x
-		err[1], // avg error y
-		err[2], // avg error z
-		vf_comp.numDecompositionLevels, // decomposition
-		vf_comp.quantizationStepSize, // quantization
-		vf_comp.compressIterations, // compression iterations
-		vf_comp.huffmanBits, // huffman
-		absolute_dataset_path.string(), // path
-		vf_comp.Dimensions.x, // x dim
-		vf_comp.Dimensions.y, // y dim
-		vf_comp.Dimensions.z, // z dim
-		vf_comp.Dimensions.w // t dim
-	);
-	
-	log_file.close();
 
 	if (save_decomp) {
 		std::fstream file_out;
-		const std::string save_path = fmt::format("{}_cudaComp_{}_{}_{}_{}.raw",
+		const std::string save_path = fmt::format("{}/{}_cudaComp_{}_{}_{}_{}.raw",
+			std::filesystem::path(filepath).parent_path().has_parent_path() ? std::filesystem::path(filepath).parent_path().string() : ".",
 			absolute_dataset_path.filename().replace_extension("").string(),
 			vf_comp.numDecompositionLevels,
 			vf_comp.quantizationStepSize,
@@ -1541,6 +1504,10 @@ void CompressFile(const char* filepath, bool read_slicewise, bool save_decomp, i
 		);
 
 		file_out.open(save_path, std::ios::out | std::ios::binary);
+		if (!file_out.good())
+		{
+			printf("Saving decompression version failed.");
+		}
 		file_out.write(reinterpret_cast<char*>(&vf_rec.Dimensions), sizeof(vf_rec.Dimensions));
 		file_out.write(reinterpret_cast<char*>(vf_rec.Data.data()), vf_rec.Data.size() * sizeof(float));
 		file_out.close();

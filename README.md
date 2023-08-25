@@ -1,15 +1,33 @@
-# cudaCompress (feat. Particle Tracer)
+# cudaCompress feat. cudaVectorCompress
 
 DWT-based compression of scientific data using CUDA.
+This program is tailored towards application on 3D and 4D vectorfields composed of floating point values.
 
 This version is based on the [cudaCompress fork of jebbstewart](https://github.com/jebbstewart/cudaCompress) which included Linux and CMake support.
 The [original source code](https://github.com/m0bl0/cudaCompress) belongs to [m0bl0](https://github.com/m0bl0).
+This version included support to compress/decompress 3D/4D floating point vector fields using cudaCompress and incorporated some fixes for Windows compatability.
 
-Here, slight modifications towards a more modern CMake usage and cross-compatability to Windows were made.
-Additionally, a particle tracing usage case was added, featuring:
-- Synthetic 4D vectorfield
-- Workflow to compress 4D vector fields
-- Simple Runge-Kutta 4th order integrator 
+### Requirements
+
+- C++17
+- [CMake 3.15+](https://cmake.org/)
+- [Git](https://git-scm.com/)
+- [CUDA Toolkit](https://developer.nvidia.com/cuda-toolkit)
+
+### Usage
+
+```bash
+# Compress the specified dataset and 
+cudaVectorCompress "MyDataset.raw" 1 1 
+```
+
+## Installation
+
+### Dependencies
+
+Dependencies are automatically fetched via CMake and [CPM](https://github.com/cpm-cmake/CPM.cmake).
+
+### Building
 
 To build, clone the project then perform the following:
 
@@ -22,11 +40,75 @@ cmake -DCMAKE_CUDA_ARCHITECTURES=86 ..
 make
 ```
 
-To run the example, from the base directory (ie: cudaCompress) do the following:
+You can find the correct value for `DCMAKE_CUDA_ARCHITECTURES` at, e.g., [https://arnon.dk](https://arnon.dk/matching-sm-architectures-arch-and-gencode-for-various-nvidia-cards/).
+To run the example, from the base directory (ie: cudaVectorCompress) do the following:
 
 ```bash
-./build/examples
+./build/Release/cudaVectorCompress
 ```
+
+## Troubleshooting
+
+- I get the following assertion: `Assertion failed: numRows <= 1 || rowPitch <= plan->m_rowPitches[0]`  
+    Not all dataset dimensions are equally safely supported by cudaCompress. This assertion typically only happens in `Debug` mode and can be ignored by using `RelWithDebInfo` / `Release` or circumvented by power-of-2-dimensions.
+- I get the following warning: `WARNING: distinctSymbolCount == 9225 > 1024, huffman table design failed.`  
+    In this case you need to increase the huffman bits.
+
+## File Structure
+
+### .cudaComp files
+
+Holds the cudaCompressed file contents.
+```bash
+# myCompressedFile.cudaComp
+uint:  x Dim
+uint:  y Dim
+uint:  z Dim
+uint:  t Dim
+int:   number of channels
+int:   number of decomposition levels
+float: quantization step size
+int:   compression iterations
+int:   huffman bits
+
+for t in t Dim:
+    for c in number of Channels:
+        size_t: number of compressed Bytes for this channel in this timeslice
+        *** compressed channel c for current timeslice t ***
+
+EOF
+```
+
+### .raw files
+
+Hold uncompressed data. If no supplementary `<filename>_dims.raw` file exists, `*.raw` files are expected to look like this:
+```bash
+# myFile.raw
+uint:  x Dim
+uint:  y Dim
+uint:  z Dim
+uint:  t Dim
+*** Dataset ***
+EOF
+```
+
+Else, they are expected to look like this:
+```bash
+# myFile_dims.raw
+uint:  x Dim
+uint:  y Dim
+uint:  z Dim
+uint:  t Dim
+EOF
+
+# myFile.raw
+*** Dataset ***
+EOF
+```
+
+Dataset is expected to be either interleaved or not.
+If it is interleaved, the components are interpreted as "xyz, xyz, xyz, ...".
+Else, they are read as 3 concatenated datasets as "xxx..., yyy..., zzz...".  
 
 # Original Readme
 
