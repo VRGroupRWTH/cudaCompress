@@ -17,8 +17,20 @@ This version included support to compress/decompress 3D/4D floating point vector
 ### Usage
 
 ```bash
-# Compress the specified dataset and 
-cudaVectorCompress "MyDataset.raw" 1 1 
+cudaVectorCompress DATASET_PATH SAVE_DECOMPRESSED INTERLEAVED_VECTORS [decomposition_levels (2)] [quantization_step_size (0.00136)] [compression_iterations (10)] [huffman_bits (14)]
+
+# Dataset saved as interleaved vectors
+# Compress & save the specified dataset, uncompress & save it 
+cudaVectorCompress "MyDataset.raw" 1 1
+
+# Dataset is saved component-wise
+# Compress & save the specified dataset, uncompress & save it 
+cudaVectorCompress "MyDataset.raw" 1 0
+
+# Dataset is saved component-wise
+# Compress & save the specified dataset, uncompress & save it
+# Also use custom compression values (here, only the huffman bits have been increased)
+cudaVectorCompress "MyDataset.raw" 1 0 2 0.00136 10 16
 ```
 
 ## Installation
