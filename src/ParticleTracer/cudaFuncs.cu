@@ -45,41 +45,6 @@ void PrintDeviceInformation()
 	printf("-------\n");
 }
 
-
-bool ReadCudaCompressedVF(CompVectorfield& vf_cmp, const char* filepath)
-{
-	std::fstream file;
-	file.open(filepath, std::ios::in | std::ios::binary | std::ios::ate);
-	if (!file.good())
-	{
-		return false;
-	}
-	std::streamsize filesize = file.tellg();
-	file.seekg(0, std::ios::beg);
-	file.read(reinterpret_cast<char*>(&vf_cmp.Dimensions), sizeof(vf_cmp.Dimensions));
-	file.read(reinterpret_cast<char*>(&vf_cmp.ChannelCount), sizeof(vf_cmp.ChannelCount));
-	file.read(reinterpret_cast<char*>(&vf_cmp.numDecompositionLevels), sizeof(vf_cmp.numDecompositionLevels));
-	file.read(reinterpret_cast<char*>(&vf_cmp.quantizationStepSize), sizeof(vf_cmp.quantizationStepSize));
-	file.read(reinterpret_cast<char*>(&vf_cmp.compressIterations), sizeof(vf_cmp.compressIterations));
-	file.read(reinterpret_cast<char*>(&vf_cmp.huffmanBits), sizeof(vf_cmp.huffmanBits));
-	vf_cmp.hData.resize(vf_cmp.Dimensions.w);
-
-	for (uint w = 0; w < vf_cmp.Dimensions.w; w++)
-	{
-		vf_cmp.hData[w].resize(vf_cmp.ChannelCount);
-	    for (uint c = 0; c < vf_cmp.ChannelCount; c++)
-		{
-			size_t compressedBytes = 0;
-			file.read(reinterpret_cast<char*>(&compressedBytes), sizeof(size_t));
-			vf_cmp.hData[w][c].resize(compressedBytes);
-			file.read(reinterpret_cast<char*>(vf_cmp.hData[w][c].data()), compressedBytes);
-		}
-	}
-
-	file.close();
-	return true;
-}
-
 template <typename T>
 std::array<double, 3> avg_error(T* data_ptr1, T* data_ptr2, size_t numVecs, int channelCount, size_t channelStride = 1)
 {
@@ -183,8 +148,6 @@ bool SaveCompressedVectorfield(const CompVectorfield& vf, const char* filepath)
 		}
 	}
 	file_comp.close();
-
-	return false;
 }
 
 
@@ -1434,6 +1397,8 @@ void TraceFile(const char* filepath, bool read_slicewise)
 	avg_error(vf_src.Data.data(), vf_rec.Data.data(), vf_src.NumVectors(), vf_src.ChannelCount, (vf_src.InterleavedXYZ ? 1 : vf_src.NumVectors(4)));
 }
 
+
+
 void CompressFile(const char* filepath, bool read_slicewise, bool save_decomp, int numDecompLvls, float quantSize, int compIters, int huffBits)
 {
 	PrintDeviceInformation();
@@ -1474,17 +1439,16 @@ void CompressFile(const char* filepath, bool read_slicewise, bool save_decomp, i
 	printf("...\n");
 
 	// Debug: Read the dataset into CPU memory
-	/*
 	vf_src.Data.resize(vf_src.NumScalars());
 	auto t0 = std::chrono::high_resolution_clock::now();
 	file.read(reinterpret_cast<char*>(vf_src.Data.data()), filesize - sizeof(Dimensions));
 	auto t1 = std::chrono::high_resolution_clock::now();
 	auto tcpu_fileread = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
-	*/
+
 	// Compression
-	auto t0 = std::chrono::high_resolution_clock::now();
+	t0 = std::chrono::high_resolution_clock::now();
 	auto tgpu_compression = compressWithCudaCompress<float>(filepath, vf_comp);
-	auto t1 = std::chrono::high_resolution_clock::now();
+	t1 = std::chrono::high_resolution_clock::now();
 	auto tcpu_compression = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 
 	// Wait for completion
@@ -1545,7 +1509,7 @@ void CompressFile(const char* filepath, bool read_slicewise, bool save_decomp, i
 	fmt::print(log_file, "ms_fileread,ms_gpu_compression,ms_gpu_decompression,ms_cpu_compression,ms_cpu_decompression,avg_err_x,avg_err_y,avg_err_z,decomposition_levels,quantization_stepsize,compressionIterations,huffmanBits,dataset_path,dataset_dimensions\n");
 	fmt::print(
 		log_file, "{},{},{},{},{},{},{},{},{},{},{},{},{},{}x{}x{}x{}\n",
-		0.0, // fileread
+		tcpu_fileread, // fileread
 		(size_t)tgpu_compression, // gpu comp 
 		(size_t)tgpu_decompression, // gpu decomp
 		tcpu_compression, // cpu comp
@@ -1581,48 +1545,4 @@ void CompressFile(const char* filepath, bool read_slicewise, bool save_decomp, i
 		file_out.write(reinterpret_cast<char*>(vf_rec.Data.data()), vf_rec.Data.size() * sizeof(float));
 		file_out.close();
 	}
-}
-
-void ReadFile(const char* filepath)
-{
-	CompVectorfield vf_comp{};
-
-
-	ReadCudaCompressedVF(vf_comp, filepath);
-	auto t0 = std::chrono::high_resolution_clock::now();
-	ReadCudaCompressedVF(vf_comp, filepath);
-	auto t1 = std::chrono::high_resolution_clock::now();
-	auto time = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
-
-	const auto absolute_dataset_path = std::filesystem::absolute(filepath);
-	const auto dataset_filename = absolute_dataset_path.filename().string();
-	std::time_t t = std::time(0); // get time now
-	std::tm* now = std::localtime(&t);
-	std::array<std::string_view, 7> weekdays = {
-		"Sunday",
-		"Monday",
-		"Tuesday",
-		"Wednesday",
-		"Thursday",
-		"Friday",
-		"Saturday",
-	};
-
-	const std::string filename = fmt::format("{}-{}-{}-{}-{}-{}-{}-{}-Read.csv",
-		now->tm_year + 1900, now->tm_mon, now->tm_mday, weekdays[now->tm_wday], now->tm_hour, now->tm_min, now->tm_sec, dataset_filename);
-
-	std::ofstream log_file = std::ofstream(filename);
-
-	fmt::print(log_file, "ms_fileread,dataset_path,dataset_dimensions\n");
-	fmt::print(
-		log_file, "{},{},{}x{}x{}x{}\n",
-		time, // fileread
-		absolute_dataset_path.string(), // path
-		vf_comp.Dimensions.x, // x dim
-		vf_comp.Dimensions.y, // y dim
-		vf_comp.Dimensions.z, // z dim
-		vf_comp.Dimensions.w // t dim
-	);
-
-	log_file.close();
 }
