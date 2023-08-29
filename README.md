@@ -17,21 +17,36 @@ This version included support to compress/decompress 3D/4D floating point vector
 ### Usage
 
 ```bash
-cudaVectorCompress DATASET_PATH SAVE_DECOMPRESSED INTERLEAVED_VECTORS [decomposition_levels (2)] [quantization_step_size (0.00136)] [compression_iterations (10)] [huffman_bits (14)]
+cudaVectorCompress DATASET_PATH SAVE_DECOMPRESSED SAVE_INTERLEAVED [decomposition_levels (2)] [quantization_step_size (0.00136)] [compression_iterations (10)] [huffman_bits (14)]
 
-# Dataset saved as interleaved vectors
-# Compress & save the specified dataset, uncompress & save it 
+# Compress & save the encoded dataset, then uncompress & save decoded dataset (interleaved)
 cudaVectorCompress "MyDataset.raw" 1 1
 
-# Dataset is saved component-wise
-# Compress & save the specified dataset, uncompress & save it 
+# Compress & save the encoded dataset, then uncompress & save decoded dataset (not interleaved)
 cudaVectorCompress "MyDataset.raw" 1 0
 
-# Dataset is saved component-wise
-# Compress & save the specified dataset, uncompress & save it
+# Compress & save the encoded dataset, then uncompress & save decoded dataset (not interleaved)
 # Also use custom compression values (here, only the huffman bits have been increased)
 cudaVectorCompress "MyDataset.raw" 1 0 2 0.00136 10 16
 ```
+
+| Parameter | Default | Meaning |
+| --------- | ------- | ------- |
+| `DATASET_PATH` | - | Absolute path to the source dataset |
+| `SAVE_DECOMPRESSED` | - | Whether to subsequently decode and save decoded representation |
+| `decomposition_levels` | 2 | Count of decompositions before compression |
+| `quantization_step_size` | 0.00136 | Size of the quantization steps used for compression |
+| `compression_iterations` | 10 | Count of compression iterations |
+| `huffman_bits` | 14 | Bits employed to store compressed representation |
+
+### FAQ
+
+- In `Debug` mode, an assertion happens upon compression.  
+    This may happen due to non-power-of-2 dataset extents. This assertion won't happen in `Release` and can be circumvented by using power-of-2 datasets.
+- Upon compression errors/warnings are thrown that the Huffman table design failed.  
+    This may happen because of the quantization step size or the huffman bits. First, try increasing the huffman bits as it is the simplest parameter.
+- How were the default values chosen?
+    The default values were taken from the sample implementations of the original author (Treib) and have not been changed.
 
 ## Installation
 

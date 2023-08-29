@@ -55,7 +55,7 @@ int main(int argc, char** argv)
 	//TestCompressedParticleKernel();
 
 	if (argc < 4) {
-		printf("cudaVectorCompress DATASET_PATH SAVE_DECOMPRESSED INTERLEAVED_VECTORS [decomposition_levels (2)] [quantization_step_size (0.00136)] [compression_iterations (10)] [huffman_bits (14)]");
+		printf("cudaVectorCompress DATASET_PATH SAVE_DECOMPRESSED SAVE_INTERLEAVED [decomposition_levels (2)] [quantization_step_size (0.00136)] [compression_iterations (10)] [huffman_bits (14)]");
 		return -1;
 	}
 

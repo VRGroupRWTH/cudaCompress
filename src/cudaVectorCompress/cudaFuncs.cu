@@ -929,7 +929,8 @@ double compressWithCudaCompress(const char* filepath, CompVectorfield& dst_vf, b
 	{
 		float milliseconds = 0;
 
-		if (interleaved)
+		//if (interleaved)
+		if (false)
 		{
 			std::vector<T> tmp(src_vf.NumScalars(3));
 
@@ -1490,6 +1491,8 @@ void CompressFile(const char* filepath, bool save_decomp, bool interleaved_vecto
 	printf("Time (CPU) Compression:      %ums\n", tcpu_compression);
 	printf("Time (CPU) Decompression:    %ums\n", tcpu_decompression);
 
+	auto err = avg_error(vf_src.Data.data(), vf_rec.Data.data(), vf_src.NumVectors(), vf_src.ChannelCount, (vf_src.InterleavedXYZ ? 1 : vf_src.NumVectors(4)));
+
 	const auto absolute_dataset_path = std::filesystem::absolute(filepath);
 
 	if (save_decomp) {
@@ -1509,7 +1512,42 @@ void CompressFile(const char* filepath, bool save_decomp, bool interleaved_vecto
 			printf("Saving decompression version failed.");
 		}
 		file_out.write(reinterpret_cast<char*>(&vf_rec.Dimensions), sizeof(vf_rec.Dimensions));
-		file_out.write(reinterpret_cast<char*>(vf_rec.Data.data()), vf_rec.Data.size() * sizeof(float));
+
+		if (interleaved_vectors)
+		{
+			std::vector<float> slice(vf_rec.Dimensions.x* vf_rec.Dimensions.y* vf_rec.Dimensions.z * vf_rec.ChannelCount);
+
+			for (uint64_t c = 0; c < vf_rec.ChannelCount; c++)
+			{
+				for (uint64_t t = 0; t < vf_rec.Dimensions.w; t++)
+				{
+					for (uint64_t z = 0; z < vf_rec.Dimensions.z; z++)
+					{
+						for (uint64_t y = 0; y < vf_rec.Dimensions.y; y++)
+						{
+							for (uint64_t x = 0; x < vf_rec.Dimensions.x; x++)
+							{
+								size_t idx_slice = (z * (uint64_t)vf_rec.Dimensions.y * (uint64_t)vf_rec.Dimensions.x + y * (uint64_t)vf_rec.Dimensions.x + x) * vf_rec.ChannelCount + c;
+								size_t idx_vf = ((uint64_t)vf_rec.Dimensions.w * (uint64_t)vf_rec.Dimensions.z * (uint64_t)vf_rec.Dimensions.y * (uint64_t)vf_rec.Dimensions.x) * c + (t * (uint64_t)vf_rec.Dimensions.z * (uint64_t)vf_rec.Dimensions.y * (uint64_t)vf_rec.Dimensions.x + z * (uint64_t)vf_rec.Dimensions.y * (uint64_t)vf_rec.Dimensions.x + y * (uint64_t)vf_rec.Dimensions.x + x);
+							    //size_t idx_vf = (t * (uint64_t)vf_rec.Dimensions.z * (uint64_t)vf_rec.Dimensions.y * (uint64_t)vf_rec.Dimensions.x + z * (uint64_t)vf_rec.Dimensions.y * (uint64_t)vf_rec.Dimensions.x + y * (uint64_t)vf_rec.Dimensions.x + x) * (uint64_t)vf_rec.ChannelCount;
+
+								slice[idx_slice] = vf_rec.Data[idx_vf];
+							}
+
+
+						}
+					}
+
+					file.write((char*)slice.data(), slice.size() * sizeof(float));
+					std::fill(slice.begin(), slice.end(), 0);
+				}
+			}
+		}
+		else
+		{
+			file_out.write(reinterpret_cast<char*>(vf_rec.Data.data()), vf_rec.Data.size() * sizeof(float));
+		}
+
 		file_out.close();
 	}
 }
