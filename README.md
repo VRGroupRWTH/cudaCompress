@@ -45,7 +45,7 @@ cudaVectorCompress "MyDataset.raw" 1 0 2 0.00136 10 16
     This may happen due to non-power-of-2 dataset extents. This assertion won't happen in `Release` and can be circumvented by using power-of-2 datasets.
 - Upon compression errors/warnings are thrown that the Huffman table design failed.  
     This may happen because of the quantization step size or the huffman bits. First, try increasing the huffman bits as it is the simplest parameter.
-- How were the default values chosen?
+- How were the default values chosen?  
     The default values were taken from the sample implementations of the original author (Treib) and have not been changed.
 
 ## Installation
