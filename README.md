@@ -41,10 +41,10 @@ cudaVectorCompress "MyDataset.raw" 1 0 2 0.00136 10 16
 
 ### FAQ
 
-- In `Debug` mode, an assertion happens upon compression.  
-    This may happen due to non-power-of-2 dataset extents. This assertion won't happen in `Release` and can be circumvented by using power-of-2 datasets.
-- Upon compression errors/warnings are thrown that the Huffman table design failed.  
-    This may happen because of the quantization step size or the huffman bits. First, try increasing the huffman bits as it is the simplest parameter.
+- I get the following assertion: `Assertion failed: numRows <= 1 || rowPitch <= plan->m_rowPitches[0]`  
+    Not all dataset dimensions are equally safely supported by cudaCompress. This assertion typically only happens in `Debug` mode and can be ignored by using `RelWithDebInfo` / `Release` or circumvented by power-of-2-dimensions.
+- I get the following warning: `WARNING: distinctSymbolCount == 9225 > 1024, huffman table design failed.`  
+    In this case you should try to increase the huffman bits. If this does not work, try also other parameters, e.g., quantization step size.
 - How were the default values chosen?  
     The default values were taken from the sample implementations of the original author (Treib) and have not been changed.
 
@@ -74,13 +74,6 @@ To run the example, from the base directory (ie: cudaVectorCompress) do the foll
 ./build/Release/cudaVectorCompress
 ```
 
-## Troubleshooting
-
-- I get the following assertion: `Assertion failed: numRows <= 1 || rowPitch <= plan->m_rowPitches[0]`  
-    Not all dataset dimensions are equally safely supported by cudaCompress. This assertion typically only happens in `Debug` mode and can be ignored by using `RelWithDebInfo` / `Release` or circumvented by power-of-2-dimensions.
-- I get the following warning: `WARNING: distinctSymbolCount == 9225 > 1024, huffman table design failed.`  
-    In this case you need to increase the huffman bits.
-
 ## File Structure
 
 ### .cudaComp files
@@ -97,12 +90,10 @@ int:   number of decomposition levels
 float: quantization step size
 int:   compression iterations
 int:   huffman bits
-
-for t in t Dim:
-    for c in number of Channels:
-        size_t: number of compressed Bytes for this channel in this timeslice
+for each timeslice t:
+    for each channel c:
+        uint64: count of compressed Bytes for this channel in this timeslice
         *** compressed channel c for current timeslice t ***
-
 EOF
 ```
 
@@ -119,7 +110,7 @@ uint:  t Dim
 EOF
 ```
 
-Else, they are expected to look like this:
+Else, if a `<filename>_dims.raw` is present, they are expected to look like this:
 ```bash
 # myFile_dims.raw
 uint:  x Dim
@@ -133,9 +124,8 @@ EOF
 EOF
 ```
 
-Dataset is expected to be either interleaved or not.
-If it is interleaved, the components are interpreted as "xyz, xyz, xyz, ...".
-Else, they are read as 3 concatenated datasets as "xxx..., yyy..., zzz...".  
+The dataset is expected to be stored componentwise, not interleaved.
+I.e., the vectors `(x,y,z)` of a dataset should be saved as `xxx..., yyy..., zzz...` such that the components behave like concatenated scalar 4D datasets.
 
 # Original Readme
 
