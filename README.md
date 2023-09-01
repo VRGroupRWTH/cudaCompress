@@ -132,12 +132,12 @@ I.e., the vectors `(x,y,z)` of a dataset should be saved as `xxx..., yyy..., zzz
 This is the source code for the cudaCompress library, which was used in the papers
 
 Interactive Editing of GigaSample Terrain Fields
-by Marc Treib, Florian Reichl, Stefan Auer, and R�diger Westermann
+by Marc Treib, Florian Reichl, Stefan Auer, and Rüdiger Westermann
 published in Computer Graphics Forum 31,2 (Proc. Eurographics 2012)
 http://wwwcg.in.tum.de/research/research/publications/2012/interactive-editing-of-gigasample-terrain-fields.html
 
 Turbulence Visualization at the Terascale on Desktop PCs
-by Marc Treib, Kai B�rger, Florian Reichl, Charles Meneveau, Alex Szalay, and R�diger Westermann
+by Marc Treib, Kai Bürger, Florian Reichl, Charles Meneveau, Alex Szalay, and Rüdiger Westermann
 published in IEEE Transactions on Computer Graphics and Visualization (Proc. IEEE Scientific Visualization 2012)
 http://wwwcg.in.tum.de/research/research/publications/2012/turbulence-visualization-at-the-terascale-on-desktop-pcs.html
 
